@@ -1,69 +1,96 @@
-import Image from "next/image";
+import Link from "next/link";
+import { BadgeCheck, ShieldCheck, Wallet } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Catalog } from "@/components/catalog";
+import { cn } from "@/lib/utils";
+import { discountPct, formatINR, products } from "@/lib/products";
+
+const steps = [
+  { title: "Pick a product", body: "Every product shows the MRP, our price and what is in stock." },
+  { title: "Add to cart", body: "Change quantities in your cart and review the total." },
+  { title: "Pay your way", body: "Pay with UPI, or pay Cash on Delivery when it arrives." },
+];
 
 export default function Home() {
+  const sample = products[0];
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main>
+      <section className="relative overflow-hidden border-b bg-primary text-primary-foreground">
+        <div className="bg-grid absolute inset-0" aria-hidden />
+        <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 md:grid-cols-[1.2fr_1fr] md:py-24">
+          <div>
+            <h1 className="font-heading max-w-xl text-5xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl">
+              Shop smart, <span className="text-signal">save more.</span>
+            </h1>
+            <p className="mt-6 max-w-lg text-lg text-primary-foreground/75">
+              Garments, footwear, electronics and industrial parts at prices well below MRP. Pay by UPI or Cash on Delivery.
+            </p>
+            <div className="mt-8">
+              <Link href="/products" className={cn(buttonVariants({ size: "lg" }), "h-11 bg-signal px-5 text-base text-signal-foreground hover:bg-signal/85")}>
+                Browse products
+              </Link>
+            </div>
+          </div>
+
+          <Link href={`/products/${sample.id}`} className="block text-foreground md:rotate-1" aria-label={`View ${sample.title}`}>
+            <Card className="border-2 border-dashed border-primary/40 shadow-xl transition-transform hover:rotate-0">
+              <div className="flex justify-center">
+                <span className="size-3 rounded-full bg-muted ring-2 ring-primary/40" aria-hidden />
+              </div>
+              <CardContent className="space-y-4">
+                <Badge variant="secondary">{sample.category}</Badge>
+                <p className="font-heading text-lg font-semibold leading-snug">{sample.title}</p>
+                <Separator />
+                <div className="flex items-end justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground line-through">MRP {formatINR(sample.mrp)}</p>
+                    <p className="font-heading text-4xl font-bold">{formatINR(sample.price)}</p>
+                  </div>
+                  <Badge className="bg-signal px-3 py-1 text-base text-signal-foreground">{discountPct(sample)}% off</Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </section>
+
+      <section className="border-b bg-muted/40">
+        <ul className="mx-auto grid max-w-6xl gap-6 px-4 py-8 text-sm sm:grid-cols-3">
+          {[
+            { icon: BadgeCheck, title: "Clear pricing", body: "MRP and our price side by side on every product." },
+            { icon: ShieldCheck, title: "Condition stated", body: "Each product says if it is new, boxed or has packaging damage." },
+            { icon: Wallet, title: "Pay your way", body: "UPI or Cash on Delivery at checkout." },
+          ].map(({ icon: Icon, title, body }) => (
+            <li key={title} className="flex gap-3">
+              <Icon className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
+              <div>
+                <p className="font-medium">{title}</p>
+                <p className="text-muted-foreground">{body}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <Catalog products={products} heading="Latest products" />
+
+      <section className="mx-auto max-w-6xl px-4 py-8">
+        <h2 className="font-heading text-2xl font-bold tracking-tight">How it works</h2>
+        <ol className="mt-6 grid gap-6 md:grid-cols-3">
+          {steps.map((s, i) => (
+            <li key={s.title} className="flex gap-4">
+              <span className="font-heading grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">{i + 1}</span>
+              <div>
+                <p className="font-medium">{s.title}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{s.body}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
+    </main>
   );
 }
