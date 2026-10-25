@@ -1,10 +1,8 @@
 "use server";
-
-import { getProduct } from "@/lib/products";
 import { validate, type FormState } from "@/lib/forms";
 import { prisma } from "@/lib/prisma";
 import { deleteImageKitFile, requireAdmin } from "../lib/imagekit-server"
-
+import { categories, getProduct } from "@/lib/products";
 const makeRef = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 const fail = (s: FormState, message = "Fix the highlighted fields and try again."): FormState => ({ ...s, ok: false, message });
 
@@ -136,4 +134,74 @@ export async function placeOrder(_prev: FormState, fd: FormData): Promise<FormSt
   // TODO: in one prisma.$transaction, re-check stock, decrement it, create Order + OrderItems
   // paymentMethod = s.values.method, upiTxnId = s.values.utr, paymentStatus = PENDING
   return { ...s, ok: true, ref: makeRef("ORD") };
+}
+
+// Admin: edit a product. Swaps the ImageKit image if a new one was uploaded.
+export async function updateProduct(_prev: FormState, fd: FormData): Promise<FormState> {
+  const s = validate(fd, {
+    id: { label: "Product id", required: true },
+    title: { label: "Title", required: true },
+    category: { label: "Category", required: true },
+    description: { label: "Description", required: true },
+    imageUrl: { label: "Image" },
+    imageUrlFileId: { label: "Image id" },
+    price: { label: "Price", required: true, positive: true },
+    mrp: { label: "MRP", required: true, positive: true },
+    stock: { label: "Stock", required: true, nonNegative: true },
+  });
+  if (!(categories as readonly string[]).includes(s.values.category)) s.errors.category ||= "Choose a category";
+  if (Number(s.values.price) >= Number(s.values.mrp)) s.errors.price ||= "Price must be below MRP";
+  for (const k of ["price", "mrp", "stock"]) {
+    if (!s.errors[k] && !Number.isInteger(Number(s.values[k]))) s.errors[k] = "Enter a whole number";
+  }
+
+  const { imageUrl, imageUrlFileId: fileId } = s.values;
+  const endpoint = process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT;
+  if (imageUrl) {
+    if (!endpoint || !imageUrl.startsWith(`${endpoint}/`) || !/^[A-Za-z0-9_-]{10,64}$/.test(fileId)) {
+      s.errors.imageUrl = "Upload the image again";
+    }
+  }
+  if (Object.keys(s.errors).length) return fail(s);
+
+  try {
+    await requireAdmin(String(fd.get("token") ?? ""));
+  } catch {
+    return fail(s, "Only admins can edit products.");
+  }
+
+  const existing = await prisma.product.findUnique({
+    where: { id: s.values.id },
+    select: { imageFileId: true },
+  });
+  if (!existing) return fail(s, "That product no longer exists.");
+
+  const newFileId = imageUrl ? fileId : null;
+  const imageChanged = newFileId !== existing.imageFileId;
+
+  try {
+    await prisma.product.update({
+      where: { id: s.values.id },
+      data: {
+        title: s.values.title,
+        description: s.values.description,
+        category: s.values.category,
+        price: Number(s.values.price),
+        mrp: Number(s.values.mrp),
+        stock: Number(s.values.stock),
+        imageUrl: imageUrl || null,
+        imageFileId: newFileId,
+      },
+    });
+  } catch (err) {
+    console.error("updateProduct failed", err);
+    // Don't leave the freshly uploaded image orphaned.
+    if (imageChanged && newFileId) await deleteImageKitFile(newFileId);
+    return fail(s, "We could not save the changes. Please try again.");
+  }
+
+  // The row is saved; remove the replaced/cleared image from ImageKit.
+  if (imageChanged && existing.imageFileId) await deleteImageKitFile(existing.imageFileId);
+
+  return { ...s, ok: true, ref: s.values.id };
 }

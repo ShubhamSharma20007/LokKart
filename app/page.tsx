@@ -2,15 +2,16 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { BadgeCheck, ShieldCheck, Wallet } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Badge, badgeVariants } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Catalog } from "@/components/catalog";
 import { CatalogSkeleton } from "@/components/catalog-skeleton";
-import { listProducts } from "@/lib/catalog";
+import { categoryIcons } from "@/components/category-icon";
+import { InfiniteProducts } from "@/components/infinity-products";
+import { getLatestProduct, listProductsPage } from "@/lib/catalog";
 import { cn } from "@/lib/utils";
-import { discountPct, formatINR } from "@/lib/products";
+import { categories, discountPct, formatINR } from "@/lib/products";
 
 const steps = [
   { title: "Pick a product", body: "Every product shows the MRP, our price and what is in stock." },
@@ -62,11 +63,8 @@ export default function Home() {
         </ul>
       </section>
 
-      <Suspense fallback={<CatalogSkeleton />}>
-        <LatestProducts />
-      </Suspense>
-
-      <section className="mx-auto max-w-6xl px-4 py-8">
+      {/* Above the endless product list, so it stays reachable. */}
+      <section className="mx-auto max-w-6xl px-4 pt-12">
         <h2 className="font-heading text-2xl font-bold tracking-tight">How it works</h2>
         <ol className="mt-6 grid gap-6 md:grid-cols-3">
           {steps.map((s, i) => (
@@ -80,6 +78,33 @@ export default function Home() {
           ))}
         </ol>
       </section>
+
+      <section id="products" className="mx-auto max-w-6xl scroll-mt-16 px-4 py-12">
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 className="font-heading text-2xl font-bold tracking-tight">Latest products</h2>
+          <Link href="/products" className="text-sm text-primary underline underline-offset-4">
+            View all with filters
+          </Link>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Shop by category">
+          {categories.map((c) => {
+            const Icon = categoryIcons[c];
+            return (
+              <Link
+                key={c}
+                href={`/products?category=${encodeURIComponent(c)}`}
+                className={cn(badgeVariants({ variant: "outline" }), "h-8 gap-1.5 px-3 text-sm hover:bg-muted")}
+              >
+                <Icon aria-hidden />
+                {c}
+              </Link>
+            );
+          })}
+        </div>
+        <Suspense fallback={<CatalogSkeleton />}>
+          <LatestProducts />
+        </Suspense>
+      </section>
     </main>
   );
 }
@@ -87,7 +112,7 @@ export default function Home() {
 // The newest product, shown as the hero card. Hidden while the store is empty.
 async function FeaturedProduct() {
   await connection();
-  const [sample] = await listProducts();
+  const sample = await getLatestProduct();
   if (!sample) return null;
 
   return (
@@ -113,8 +138,9 @@ async function FeaturedProduct() {
   );
 }
 
+// Only the first page is fetched here. The rest loads as the shopper scrolls.
 async function LatestProducts() {
   await connection();
-  const products = await listProducts();
-  return <Catalog products={products} heading="Latest products" />;
+  const { products, nextCursor } = await listProductsPage();
+  return <InfiniteProducts initialProducts={products} initialCursor={nextCursor} />;
 }
