@@ -6,10 +6,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import { addItem } from "@/lib/store/slices/cartSlice";
-import type { Product } from "@/lib/products";
+import type { StoreProduct } from "@/lib/catalog";
 import { useMounted } from "@/lib/use-mounted";
 
-export function AddToCart({ product, buyNow = false }: { product: Product; buyNow?: boolean }) {
+type CartProduct = Pick<StoreProduct, "id" | "title" | "price" | "mrp" | "stock">;
+
+export function AddToCart({ product, buyNow = false }: { product: CartProduct; buyNow?: boolean }) {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const inCart = useAppSelector((s) => s.cart.items.find((i) => i.id === product.id));

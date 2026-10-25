@@ -6,6 +6,7 @@ import { Providers } from "@/components/provider";
 import { SiteHeader } from "@/components/site-header";
 import { Toaster } from "sonner";
 import { Suspense } from "react";
+import { Spinner } from "@/components/ui/spinner";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -25,20 +26,28 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${bricolage.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="flex min-h-full flex-col font-sans">
-        <Suspense fallback={null}>
-          
         <Providers>
           <SiteHeader />
-          <div className="flex-1">{children}</div>
+          <div className="flex flex-1 flex-col">
+            <Suspense
+              fallback={
+                <div className="flex min-h-[60vh] flex-1 items-center justify-center gap-3">
+                  <Spinner className="size-8" />
+                  <h1 className="text-lg font-medium">Loading...</h1>
+                </div>
+              }
+            >
+              {children}
+            </Suspense>
+          </div>
           <SiteFooter />
         </Providers>
-        </Suspense>
-        <Toaster  closeButton
-        toastOptions={{
-          classNames:{
-           closeButton: '!right-0 !left-auto !translate-x-0',
-          }
-        }}
+        <Toaster closeButton
+          toastOptions={{
+            classNames: {
+              closeButton: '!right-0 !left-auto !translate-x-0',
+            }
+          }}
         />
       </body>
     </html>

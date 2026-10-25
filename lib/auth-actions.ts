@@ -23,7 +23,7 @@ export async function syncUser(idToken: string): Promise<SyncResult> {
     const photoUrl = c.picture ?? null;
     const login = { photoUrl, lastLoginAt: new Date() };
 
-    const byUid = await prisma.user.findUnique({ where: { email: c.email } });
+    const byUid = await prisma.user.findUnique({ where:   { email: c.email } });
     const user = byUid
       ? await prisma.user.update({ where: { id: byUid.id }, data: login })
       : await prisma.user.upsert({

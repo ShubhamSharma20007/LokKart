@@ -16,6 +16,7 @@ export type Rule = {
   gst?: boolean;
   pincode?: boolean;
   positive?: boolean;
+  nonNegative?: boolean;
 };
 
 export function validate(fd: FormData, rules: Record<string, Rule>): FormState {
@@ -40,6 +41,7 @@ export function validate(fd: FormData, rules: Record<string, Rule>): FormState {
     if (r.gst && !/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(v)) errors[key] = "Enter a valid 15-character GSTIN";
     if (r.pincode && !/^[1-9]\d{5}$/.test(v)) errors[key] = "Enter a 6-digit pincode";
     if (r.positive && !(Number(v) > 0)) errors[key] = `${r.label} must be more than 0`;
+    if (r.nonNegative && !(Number(v) >= 0)) errors[key] = `${r.label} cannot be negative`;
   }
   return { ok: Object.keys(errors).length === 0, errors, values };
 }

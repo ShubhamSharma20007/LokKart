@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { startTransition, useActionState, useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,7 +14,8 @@ import { formatINR } from "@/lib/products";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import { clearCart, selectHydrated, selectSubtotal } from "@/lib/store/slices/cartSlice";
 import { cn } from "@/lib/utils";
-
+import { auth } from "@/hooks/useFirebaseAuth";
+import Link from "next/link";
 type Method = "COD" | "UPI";
 
 export default function CheckoutPage() {
@@ -24,6 +25,11 @@ export default function CheckoutPage() {
   const total = useAppSelector(selectSubtotal);
   const [state, action, pending] = useActionState(placeOrder, initialState);
   const [method, setMethod] = useState<Method>("COD");
+  const submit = async (fd: FormData) => {
+    const token = await auth.currentUser?.getIdToken();
+    if (token) fd.set("token", token);
+    startTransition(() => action(fd));
+  };
 
   useEffect(() => {
     if (state.ok) {
@@ -54,7 +60,10 @@ export default function CheckoutPage() {
               : "Keep the cash ready. You pay when the order arrives."
           }
           reference={state.ref}
-          actions={[{ href: "/products", label: "Continue shopping", primary: true }]}
+          actions={[
+            { href: "/orders", label: "View my orders", primary: true },
+            { href: "/products", label: "Continue shopping" },
+          ]}
         />
       </main>
     );
@@ -84,7 +93,7 @@ export default function CheckoutPage() {
     <main className="mx-auto max-w-6xl px-4 py-10">
       <h1 className="font-heading text-3xl font-bold tracking-tight">Checkout</h1>
 
-      <form action={action} noValidate className="mt-6 grid gap-8 lg:grid-cols-[1.5fr_1fr]">
+      <form action={submit} noValidate className="mt-6 grid gap-8 lg:grid-cols-[1.5fr_1fr]">
         <input type="hidden" name="items" value={JSON.stringify(items.map((i) => ({ id: i.id, qty: i.qty })))} />
 
         <div className="space-y-6">
@@ -130,9 +139,9 @@ export default function CheckoutPage() {
                     </div>
                     <div className="space-y-2 text-sm">
                       <p>Pay <strong>{formatINR(total)}</strong> to <span className="font-mono">{upiId}</span></p>
-                      <a href={upiLink} className={cn(buttonVariants({ variant: "outline" }), "h-9 px-3 sm:hidden")}>
+                      <Link href={upiLink} className={cn(buttonVariants({ variant: "outline" }), "h-9 px-3 sm:hidden")}>
                         Open UPI app
-                      </a>
+                      </Link>
                       <p className="text-muted-foreground">After paying, enter the 12-digit UTR from your UPI app below.</p>
                     </div>
                   </div>

@@ -1,15 +1,15 @@
 import Link from "next/link";
 import { categories } from "@/lib/products";
 
-const link = "text-primary-foreground/70 transition-colors hover:text-primary-foreground";
+const link = "text-brand-foreground/70 transition-colors hover:text-brand-foreground";
 
 export function SiteFooter() {
   return (
-    <footer className="mt-16 bg-primary text-primary-foreground">
+    <footer className="mt-16 bg-brand text-brand-foreground">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:grid-cols-3">
         <div className="space-y-3">
           <p className="font-heading text-xl font-extrabold tracking-tight">Bachatnix</p>
-          <p className="max-w-xs text-sm text-primary-foreground/70">
+          <p className="max-w-xs text-sm text-brand-foreground/70">
             Good products at prices that save you money. MRP and price shown on every item.
           </p>
         </div>
@@ -25,14 +25,14 @@ export function SiteFooter() {
         </nav>
         <div className="space-y-3 text-sm">
           <p className="font-medium">Payment</p>
-          <ul className="space-y-2 text-primary-foreground/70">
+          <ul className="space-y-2 text-brand-foreground/70">
             <li>Cash on Delivery</li>
             <li>UPI</li>
           </ul>
         </div>
       </div>
       <div className="border-t border-white/10">
-        <p className="mx-auto max-w-6xl px-4 py-5 text-xs text-primary-foreground/60">© 2026 Bachatnix</p>
+        <p className="mx-auto max-w-6xl px-4 py-5 text-xs text-brand-foreground/60">© 2026 Bachatnix</p>
       </div>
     </footer>
   );

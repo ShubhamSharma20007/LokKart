@@ -31,7 +31,7 @@ function Avatar({ src, name, className }: { src: string | null; name: string; cl
     // eslint-disable-next-line @next/next/no-img-element
     <img src={src} alt="" referrerPolicy="no-referrer" className={`${className} rounded-full object-cover`} />
   ) : (
-    <span className={`${className} grid place-items-center rounded-full bg-primary font-bold text-primary-foreground`} aria-hidden>
+    <span className={`${className} grid place-items-center rounded-full bg-brand font-bold text-brand-foreground`} aria-hidden>
       {name.charAt(0).toUpperCase()}
     </span>
   );
@@ -101,9 +101,9 @@ export function AuthButton() {
             <PlusSquare aria-hidden /> Add product
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem render={<Link href="/settings" />}>
+        {/* <DropdownMenuItem render={<Link href="/settings" />}>
           <Settings aria-hidden /> Settings
-        </DropdownMenuItem>
+        </DropdownMenuItem> */}
 
         <DropdownMenuSeparator />
 

@@ -41,11 +41,17 @@ export function FormError({ message }: { message?: string }) {
     </p>
   );
 }
+type SuccessAction = {
+  label: string;
+  href?: string;
+  onClick?: () => void;
+  primary?: boolean;
+};
 
 export function SuccessCard({
   title, body, reference, actions,
 }: {
-  title: string; body: string; reference?: string; actions: { href: string; label: string; primary?: boolean }[];
+  title: string; body: string; reference?: string; actions: SuccessAction[];
 }) {
   return (
     <div role="status" className="rounded-xl border bg-card p-8 text-center shadow-sm">
@@ -56,11 +62,28 @@ export function SuccessCard({
         <p className="mt-4 inline-block rounded-md bg-muted px-3 py-1.5 font-mono text-sm">Reference {reference}</p>
       )}
       <div className="mt-6 flex flex-wrap justify-center gap-3">
-        {actions.map((a) => (
-          <Link key={a.href} href={a.href} className={cn(buttonVariants({ variant: a.primary ? "default" : "outline", size: "lg" }), "h-10 px-4")}>
-            {a.label}
-          </Link>
-        ))}
+        {actions.map((a) =>
+          a.href ? (
+            <Link
+              key={a.label}
+              href={a.href}
+              className={cn(buttonVariants({ variant: a.primary ? "default" : "outline", size: "lg" }), "h-10 px-4")}
+            >
+              {a.label}
+            </Link>
+          ) : (
+            <Button
+              key={a.label}
+              type="button"
+              size="lg"
+              variant={a.primary ? "default" : "outline"}
+              onClick={a.onClick}
+              className="h-10 px-4"
+            >
+              {a.label}
+            </Button>
+          ),
+        )}
       </div>
     </div>
   );

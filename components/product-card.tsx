@@ -3,19 +3,24 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { AddToCart } from "@/components/add-to-cart";
-import { categoryIcons } from "@/components/category-icon";
+import { ProductImage } from "@/components/product-image";
 import { StockBadge } from "./stock-badge";
 import { cn } from "@/lib/utils";
-import { discountPct, formatINR, type Product } from "@/lib/products";
+import { discountPct, formatINR } from "@/lib/products";
+import type { StoreProduct } from "@/lib/catalog";
 
-export function ProductCard({ product }: { product: Product }) {
-  const Icon = categoryIcons[product.category];
+export function ProductCard({ product }: { product: StoreProduct }) {
   const href = `/products/${product.id}`;
   return (
     <Card className="group gap-3 pt-0 transition-shadow hover:shadow-lg">
       <Link href={href} aria-label={product.title} tabIndex={-1} className="block">
-        <div className="relative flex h-40 items-center justify-center bg-gradient-to-br from-primary/10 to-primary/[0.03] text-primary/60">
-          <Icon className="size-14 transition-transform group-hover:scale-110" aria-hidden />
+        <div className="relative flex h-40 items-center justify-center overflow-hidden bg-gradient-to-br from-primary/10 to-primary/[0.03] text-primary/60">
+          <ProductImage
+            product={product}
+            width={640}
+            className="transition-transform group-hover:scale-105"
+            iconClassName="size-14 transition-transform group-hover:scale-110"
+          />
           <Badge variant="signal" className="absolute top-3 right-3 h-6 px-2.5 text-sm font-bold">
             {discountPct(product)}% off
           </Badge>
