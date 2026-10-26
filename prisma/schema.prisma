@@ -63,17 +63,23 @@ model Product {
 
 model Order {
   id            String        @id @default(cuid())
-  ref           String        @unique
-  userId        String?
-  user          User?         @relation(fields: [userId], references: [id])
-  name          String
-  phone         String
-  address       Json
-  total         Int
+  ref           String        @default(cuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
   paymentMethod PaymentMethod
   paymentStatus PaymentStatus @default(PENDING)
-  upiTxnId      String?       @unique
   status        OrderStatus   @default(PLACED)
+  upiTxnId      String?       @unique
+  subtotal      Int           @default(0)
+  shipping      Int           @default(0)
+  codCharge     Int           @default(0)
+  total         Int
+  name          String
+  phone         String
+  address       String        @default("")
+  city          String        @default("")
+  state         String        @default("")
+  pincode       String        @default("")
   items         OrderItem[]
   createdAt     DateTime      @default(now())
 }
@@ -81,10 +87,10 @@ model Order {
 model OrderItem {
   id        String  @id @default(cuid())
   orderId   String
+  order     Order   @relation(fields: [orderId], references: [id])
   productId String
   title     String
-  qty       Int
   price     Int
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  qty       Int
   product   Product @relation(fields: [productId], references: [id])
 }
