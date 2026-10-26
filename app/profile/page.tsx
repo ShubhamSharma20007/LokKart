@@ -14,6 +14,7 @@ import { Field, FormError, SubmitButton } from "@/components/formField";
 import { auth } from "@/hooks/useFirebaseAuth";
 import { getProfile, updateProfile, type ProfileView } from "@/lib/profile-actions";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const dateFmt = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "long", year: "numeric" });
 
@@ -215,10 +216,36 @@ export default function ProfilePage() {
 }
 
 function ProfileSkeleton() {
+  const field = (hint = false) => (
+    <div className="space-y-1.5">
+      <Skeleton className="h-4 w-24" />
+      <Skeleton className="h-8 w-full rounded-lg" />
+      {hint && <Skeleton className="h-3 w-56 max-w-full" />}
+    </div>
+  );
+
   return (
     <div className="mt-6 space-y-6" aria-busy="true" aria-label="Loading your profile">
-      <div className="h-32 animate-pulse rounded-xl bg-muted" />
-      <div className="h-80 animate-pulse rounded-xl bg-muted" />
+      <Card>
+        <CardContent className="flex flex-wrap items-center gap-5">
+          <Skeleton className="size-20 rounded-full" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-6 w-44 max-w-full" />
+            <Skeleton className="h-4 w-56 max-w-full" />
+            <Skeleton className="h-4 w-40" />
+          </div>
+          <Skeleton className="h-9 w-24 rounded-lg" />
+        </CardContent>
+      </Card>
+
+      <div className="space-y-4 rounded-xl border bg-card p-5">
+        <Skeleton className="h-6 w-40" />
+        {field()}
+        {field(true)}
+        {field(true)}
+        <Separator />
+        <Skeleton className="h-10 w-32 rounded-lg" />
+      </div>
     </div>
   );
 }

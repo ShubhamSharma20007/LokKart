@@ -28,6 +28,7 @@ export function ProductForm({
   const editing = !!product;
   const [state, action, pending] = useActionState(editing ? updateProduct : createProduct, initialState);
   const [uploading, setUploading] = useState(false);
+  const [category, setCategory] = useState<string | null>(product?.category ?? null);
   const handled = useRef<FormState | null>(null);
 
   // Defaults come from the product being edited; after a failed submit, the submitted values win.
@@ -83,7 +84,7 @@ export function ProductForm({
       </Field>
 
       <Field label="Category" name="category" error={errors.category}>
-        <Select name="category" defaultValue={v("category") || null}>
+        <Select name="category" value={category} onValueChange={(val) => setCategory(val)}>
           <SelectTrigger id="category" className="w-full" aria-invalid={!!errors.category}>
             <SelectValue placeholder="Select a category" />
           </SelectTrigger>

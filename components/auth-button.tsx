@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { Loader2, LogOut, Moon, Package, Settings, Sun, UserRound, PlusSquare } from "lucide-react";
+import { Loader2, LogOut, Moon, Package, Settings, Sun, UserRound, PlusSquare, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -99,6 +99,11 @@ export function AuthButton() {
         {user.role === "ADMIN" && (
           <DropdownMenuItem render={<Link href="/admin/products/new" />}>
             <PlusSquare aria-hidden /> Add product
+          </DropdownMenuItem>
+        )}
+            {user.role === "ADMIN" && (
+          <DropdownMenuItem render={<Link href="/admin/orders" />}>
+            <ClipboardList aria-hidden /> Manage orders
           </DropdownMenuItem>
         )}
         {/* <DropdownMenuItem render={<Link href="/settings" />}>

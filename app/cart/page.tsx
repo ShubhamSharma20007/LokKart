@@ -12,6 +12,7 @@ import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import { removeItem, selectCount, selectHydrated, selectSubtotal, setQty } from "@/lib/store/slices/cartSlice";
 import { formatINR } from "@/lib/products";
 import { cn } from "@/lib/utils";
+import { useMounted } from "@/lib/use-mounted";
 
 export default function CartPage() {
   const dispatch = useAppDispatch();
@@ -19,16 +20,18 @@ export default function CartPage() {
   const hydrated = useAppSelector(selectHydrated);
   const subtotal = useAppSelector(selectSubtotal);
   const count = useAppSelector(selectCount);
+  const mounted = useMounted();
+  const isReady = mounted && hydrated;
   const savings = items.reduce((n, i) => n + (i.mrp - i.price) * i.qty, 0);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-10">
       <div className="flex items-center gap-3">
         <h1 className="font-heading text-3xl font-bold tracking-tight">Your cart</h1>
-        {hydrated && count > 0 && <Badge variant="secondary" className="h-6 px-2.5 text-sm">{count} {count === 1 ? "item" : "items"}</Badge>}
+        {isReady && count > 0 && <Badge variant="secondary" className="h-6 px-2.5 text-sm">{count} {count === 1 ? "item" : "items"}</Badge>}
       </div>
 
-      {!hydrated ? (
+      {!isReady ? (
         <CartSkeleton />
       ) : items.length === 0 ? (
         <EmptyCart />

@@ -33,3 +33,13 @@ export async function deleteImageKitFile(fileId: string): Promise<boolean> {
     return false;
   }
 }
+
+// Returns the DB user for a valid Firebase token, or null.
+export async function getUserFromToken(idToken: string) {
+  const c = await verifyFirebaseToken(idToken);
+  if (!c.email) return null
+  return prisma.user.findFirst({
+    where: { OR: [{ firebaseUid: c.uid }, ...(c.email ? [{ email: c.email }] : [])] },
+    select: { id: true },
+  });
+}

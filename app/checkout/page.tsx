@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { buttonVariants } from "@/components/ui/button";
-import { CartSkeleton, EmptyCart } from "@/components/cart-states";
+import { CheckoutSkeleton, EmptyCart } from "@/components/cart-states";
 import { Field, FormError, SubmitButton, SuccessCard } from "@/components/formField";
 import { placeOrder } from "@/lib/actions";
 import { initialState } from "@/lib/forms";
@@ -15,6 +15,7 @@ import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import { clearCart, selectHydrated, selectSubtotal } from "@/lib/store/slices/cartSlice";
 import { cn } from "@/lib/utils";
 import { auth } from "@/hooks/useFirebaseAuth";
+import { useMounted } from "@/lib/use-mounted";
 import Link from "next/link";
 type Method = "COD" | "UPI";
 
@@ -23,6 +24,8 @@ export default function CheckoutPage() {
   const items = useAppSelector((s) => s.cart.items);
   const hydrated = useAppSelector(selectHydrated);
   const total = useAppSelector(selectSubtotal);
+  const mounted = useMounted();
+  const isReady = mounted && hydrated;
   const [state, action, pending] = useActionState(placeOrder, initialState);
   const [method, setMethod] = useState<Method>("COD");
   const submit = async (fd: FormData) => {
@@ -69,11 +72,11 @@ export default function CheckoutPage() {
     );
   }
 
-  if (!hydrated) {
+  if (!isReady) {
     return (
       <main className="mx-auto max-w-6xl px-4 py-10">
         <h1 className="font-heading text-3xl font-bold tracking-tight">Checkout</h1>
-        <CartSkeleton />
+        <CheckoutSkeleton />
       </main>
     );
   }
@@ -135,7 +138,9 @@ export default function CheckoutPage() {
                 {upiId ? (
                   <div className="flex flex-wrap items-center gap-5">
                     <div className="rounded-lg bg-white p-3">
-                      <QRCodeSVG value={upiLink} size={150} />
+                      <QRCodeSVG value={upiLink} size={150} 
+                      
+                      />
                     </div>
                     <div className="space-y-2 text-sm">
                       <p>Pay <strong>{formatINR(total)}</strong> to <span className="font-mono">{upiId}</span></p>

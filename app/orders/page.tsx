@@ -12,6 +12,7 @@ import { auth } from "@/hooks/useFirebaseAuth";
 import { getMyOrders, type OrderView } from "@/lib/order-actions";
 import { formatINR } from "@/lib/products";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const statusLabel: Record<OrderView["status"], string> = {
   PLACED: "Order placed",
@@ -187,10 +188,46 @@ export default function OrdersPage() {
 
 function OrdersSkeleton() {
   return (
-    <div className="mt-6 space-y-4" aria-busy="true" aria-label="Loading your orders">
+    <ul className="mt-6 space-y-4" aria-busy="true" aria-label="Loading your orders">
       {[0, 1].map((i) => (
-        <div key={i} className="h-44 animate-pulse rounded-xl bg-muted" />
+        <li key={i}>
+          <Card>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-3.5 w-36" />
+                </div>
+                <Skeleton className="h-6 w-24 rounded-full" />
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                {[0, 1].map((j) => (
+                  <div key={j} className="flex justify-between gap-3">
+                    <Skeleton className="h-4 w-48 max-w-full" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                ))}
+              </div>
+
+              <Separator />
+
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <div className="space-y-2">
+                  <Skeleton className="h-3.5 w-32" />
+                  <Skeleton className="h-3.5 w-64 max-w-full" />
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <Skeleton className="h-3.5 w-10" />
+                  <Skeleton className="h-8 w-24" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }

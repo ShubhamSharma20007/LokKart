@@ -1,7 +1,7 @@
 "use server";
 import { validate, type FormState } from "@/lib/forms";
 import { prisma } from "@/lib/prisma";
-import { deleteImageKitFile, requireAdmin } from "../lib/imagekit-server"
+import { deleteImageKitFile, requireAdmin,getUserFromToken } from "../lib/imagekit-server"
 import { categories, getProduct } from "@/lib/products";
 const makeRef = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 const fail = (s: FormState, message = "Fix the highlighted fields and try again."): FormState => ({ ...s, ok: false, message });
@@ -96,7 +96,9 @@ export async function deleteProduct(idToken: string, productId: string): Promise
   }
 }
 
-// Buyer: place an order. Prices come from the server, never from the browser.
+class StockError extends Error {}
+
+// Buyer: place an order. Prices and stock come from the database, never from the browser.
 export async function placeOrder(_prev: FormState, fd: FormData): Promise<FormState> {
   const s = validate(fd, {
     name: { label: "Full name", required: true },
@@ -110,30 +112,89 @@ export async function placeOrder(_prev: FormState, fd: FormData): Promise<FormSt
     items: { label: "Cart", required: true },
   });
 
-  if (!["COD", "UPI"].includes(s.values.method)) s.errors.method = "Choose a payment method";
-  if (s.values.method === "UPI" && !/^\d{12}$/.test(s.values.utr)) {
+  const method = s.values.method;
+  if (!["COD", "UPI"].includes(method)) s.errors.method = "Choose a payment method";
+  if (method === "UPI" && !/^\d{12}$/.test(s.values.utr)) {
     s.errors.utr = "Enter the 12-digit UTR from your UPI app";
   }
   if (Object.keys(s.errors).length) return fail(s);
 
-  let cart: { id: string; qty: number }[] = [];
+  // Orders belong to a signed-in user so they show up under "My orders".
+  let user: { id: string } | null = null;
   try {
-    cart = JSON.parse(s.values.items);
+    user = await getUserFromToken(String(fd.get("token") ?? ""));
   } catch {}
-  if (!cart.length) return fail(s, "Your cart is empty.");
+  if (!user) return fail(s, "Please sign in to place your order.");
 
-  let total = 0;
-  for (const c of cart) {
-    const p = getProduct(c.id);
-    if (!p || !(c.qty >= 1) || c.qty > p.stock) {
-      return fail(s, `${p?.title ?? "An item"} is no longer available in that quantity. Update your cart.`);
+  // Merge duplicate lines and drop anything malformed.
+  const cart = new Map<string, number>();
+  try {
+    const raw: unknown = JSON.parse(s.values.items);
+    if (Array.isArray(raw)) {
+      for (const r of raw.slice(0, 50)) {
+        const { id, qty } = (r ?? {}) as { id?: unknown; qty?: unknown };
+        if (typeof id === "string" && id && Number.isInteger(qty) && (qty as number) >= 1 && (qty as number) <= 100000) {
+          cart.set(id, (cart.get(id) ?? 0) + (qty as number));
+        }
+      }
     }
-    total += p.price * c.qty;
-  }
+  } catch {}
+  if (!cart.size) return fail(s, "Your cart is empty.");
 
-  // TODO: in one prisma.$transaction, re-check stock, decrement it, create Order + OrderItems
-  // paymentMethod = s.values.method, upiTxnId = s.values.utr, paymentStatus = PENDING
-  return { ...s, ok: true, ref: makeRef("ORD") };
+  try {
+    const order = await prisma.$transaction(async (tx) => {
+      const products = await tx.product.findMany({
+        where: { id: { in: [...cart.keys()] } },
+        select: { id: true, title: true, price: true },
+      });
+      if (products.length !== cart.size) throw new StockError("An item in your cart is no longer available. Update your cart.");
+
+      let total = 0;
+      const items: { productId: string; title: string; qty: number; price: number }[] = [];
+
+      for (const p of products) {
+        const qty = cart.get(p.id)!;
+        // Only decrements if enough stock is left, so two buyers can't oversell the last piece.
+        const res = await tx.product.updateMany({
+          where: { id: p.id, stock: { gte: qty } },
+          data: { stock: { decrement: qty } },
+        });
+        if (res.count === 0) throw new StockError(`${p.title} is no longer available in that quantity. Update your cart.`);
+        total += p.price * qty;
+        items.push({ productId: p.id, title: p.title, qty, price: p.price });
+      }
+
+      return tx.order.create({
+        data: {
+          ref: makeRef("ORD"),
+          userId: user!.id,
+          name: s.values.name,
+          phone: s.values.phone,
+          address: {
+            address: s.values.address,
+            city: s.values.city,
+            state: s.values.state,
+            pincode: s.values.pincode,
+          },
+          total,
+          paymentMethod: method as "COD" | "UPI",
+          upiTxnId: method === "UPI" ? s.values.utr : null,
+          items: { create: items },
+        },
+        select: { ref: true },
+      });
+    });
+
+    return { ...s, ok: true, ref: order.ref };
+  } catch (err) {
+    if (err instanceof StockError) return fail(s, err.message);
+    if ((err as { code?: string }).code === "P2002" && method === "UPI") {
+      s.errors.utr = "This UTR was already used for another order";
+      return fail(s);
+    }
+    console.error("placeOrder failed", err);
+    return fail(s, "We could not place your order. Please try again.");
+  }
 }
 
 // Admin: edit a product. Swaps the ImageKit image if a new one was uploaded.

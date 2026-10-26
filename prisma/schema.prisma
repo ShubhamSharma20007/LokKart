@@ -72,7 +72,7 @@ model Order {
   total         Int
   paymentMethod PaymentMethod
   paymentStatus PaymentStatus @default(PENDING)
-  upiTxnId      String?
+  upiTxnId      String?       @unique
   status        OrderStatus   @default(PLACED)
   items         OrderItem[]
   createdAt     DateTime      @default(now())

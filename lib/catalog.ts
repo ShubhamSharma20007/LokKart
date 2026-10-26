@@ -70,8 +70,9 @@ export async function listProductsPage(
 
 // The newest product, for the home page hero card.
 export const getLatestProduct = cache(async (): Promise<StoreProduct | null> => {
-  const { products } = await listProductsPage({ limit: 1 });
-  return products[0] ?? null;
+  const { products } = await listProductsPage({limit:10});
+  const randomProduct = Math.floor(Math.random() * products.length);
+  return products[randomProduct] ?? null;
 });
 
 export const getStoreProduct = cache(async (id: string): Promise<StoreProduct | null> => {

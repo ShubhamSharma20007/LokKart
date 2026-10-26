@@ -5,6 +5,9 @@ import { buttonVariants } from "@/components/ui/button";
 import { categoryIcons } from "./category-icon";
 import { categories } from "@/lib/products";
 import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function EmptyCart() {
   return (
@@ -42,15 +45,99 @@ export function EmptyCart() {
 }
 
 // Shown until the saved cart is loaded, so "empty" never flashes for a full cart.
+function SummarySkeleton() {
+  return (
+    <Card className="border-2">
+      <CardContent className="space-y-4">
+        <Skeleton className="h-6 w-36" />
+        <div className="space-y-2">
+          <div className="flex justify-between">
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-4 w-20" />
+          </div>
+          <div className="flex justify-between">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-6 w-16 rounded-full" />
+          </div>
+        </div>
+        <Separator />
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-4 w-12" />
+          <Skeleton className="h-8 w-28" />
+        </div>
+        <Skeleton className="h-10 w-full rounded-lg" />
+        <Skeleton className="h-9 w-full rounded-lg" />
+      </CardContent>
+    </Card>
+  );
+}
+
+// Shown until the saved cart is loaded, so "empty" never flashes for a full cart.
 export function CartSkeleton() {
   return (
     <div className="mt-6 grid gap-8 lg:grid-cols-[1.5fr_1fr]" aria-busy="true" aria-label="Loading your cart">
-      <div className="space-y-3">
-        {[0, 1].map((i) => (
-          <div key={i} className="h-24 animate-pulse rounded-xl bg-muted" />
+      <ul className="space-y-3">
+        {[0, 1, 2].map((i) => (
+          <li key={i}>
+            <Card>
+              <CardContent className="flex flex-wrap items-center gap-4">
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Skeleton className="h-4 w-48 max-w-full" />
+                  <Skeleton className="h-3.5 w-32" />
+                </div>
+                <div className="flex items-center gap-1">
+                  <Skeleton className="size-8 rounded-lg" />
+                  <Skeleton className="mx-1 h-4 w-8" />
+                  <Skeleton className="size-8 rounded-lg" />
+                </div>
+                <Skeleton className="h-5 w-24" />
+                <Skeleton className="size-8 rounded-lg" />
+              </CardContent>
+            </Card>
+          </li>
         ))}
+      </ul>
+      <aside className="lg:sticky lg:top-20 lg:self-start">
+        <SummarySkeleton />
+      </aside>
+    </div>
+  );
+}
+
+// The checkout page has a different layout (address and payment sections), so it gets its own.
+export function CheckoutSkeleton() {
+  const field = (span = false) => (
+    <div className={span ? "space-y-1.5 sm:col-span-2" : "space-y-1.5"}>
+      <Skeleton className="h-4 w-24" />
+      <Skeleton className="h-8 w-full rounded-lg" />
+    </div>
+  );
+
+  return (
+    <div className="mt-6 grid gap-8 lg:grid-cols-[1.5fr_1fr]" aria-busy="true" aria-label="Loading checkout">
+      <div className="space-y-6">
+        <section className="space-y-4 rounded-xl border bg-card p-5">
+          <Skeleton className="h-6 w-40" />
+          <div className="grid gap-4 sm:grid-cols-2">
+            {field()}
+            {field()}
+            {field(true)}
+            {field()}
+            {field()}
+            {field()}
+          </div>
+        </section>
+        <section className="space-y-4 rounded-xl border bg-card p-5">
+          <Skeleton className="h-6 w-40" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Skeleton className="h-[74px] rounded-lg" />
+            <Skeleton className="h-[74px] rounded-lg" />
+          </div>
+        </section>
       </div>
-      <div className="h-56 animate-pulse rounded-xl bg-muted" />
+      <aside className="lg:sticky lg:top-20 lg:self-start">
+        <SummarySkeleton />
+      </aside>
     </div>
   );
 }
