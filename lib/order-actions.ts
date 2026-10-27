@@ -3,19 +3,43 @@
 import { prisma } from "@/lib/prisma";
 import { getCodEstimate } from "@/lib/shipping";
 import { verifyFirebaseToken } from "@/lib/firebase-token";
-
+import { getUserFromToken } from "@/lib/imagekit-server";
 type Input = {
   token: string;
   payment: "COD" | "UPI";
+  utr?: string;
   address: { name: string; phone: string; address: string; city: string; state: string; pincode: string };
   items: { id: string; qty: number }[];
 };
-
 type Result =
   | { ok: true; orderId: string }
   | { ok: false; message: string; errors?: Record<string, string> };
 
+
+  const makeRef = () => `ORD-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+export type MyOrder = {
+  id: string;
+  ref: string;
+  total: number;
+  status: "PLACED" | "CONFIRMED" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+  paymentMethod: "COD" | "UPI";
+  paymentStatus: "PENDING" | "PAID" | "FAILED";
+  createdAt: string;
+  address: { address: string; city: string; state: string; pincode: string };
+  items: { id: string; productId: string; title: string; qty: number; price: number }[];
+};
+
+
+export type MyOrdersResult =
+  | { ok: true; orders: MyOrder[] }
+  | { ok: false; message: string };
+
+
 export async function placeOrder(input: Input): Promise<Result> {
+  const utr = (input.utr ?? "").trim();
+  if (input.payment === "UPI" && !/^\d{12}$/.test(utr)) {
+    return { ok: false, message: "Enter the 12-digit UTR.", errors: { utr: "Enter the 12-digit UTR from your UPI app" } };
+  }
   // 1. Who is ordering
   const decoded = await verifyFirebaseToken(input.token).catch(() => null);
   if (!decoded || !decoded.email) return { ok: false, message: "Please sign in again." };
@@ -83,6 +107,8 @@ export async function placeOrder(input: Input): Promise<Result> {
 
       return tx.order.create({
         data: {
+          ref: makeRef(),
+          upiTxnId: input.payment === "UPI" ? utr : null,
           userId: user.id,
           paymentMethod: input.payment,
           status: "PLACED",
@@ -104,6 +130,9 @@ export async function placeOrder(input: Input): Promise<Result> {
 
     return { ok: true, orderId: order.id };
   } catch (e) {
+    if ((e as { code?: string }).code === "P2002") {
+      return { ok: false, message: "This UTR was already used.", errors: { utr: "This UTR was already used for another order" } };
+    }
     if (e instanceof Error && e.message.startsWith("STOCK:")) {
       return { ok: false, message: `"${e.message.slice(6)}" just went out of stock.` };
     }
@@ -112,3 +141,42 @@ export async function placeOrder(input: Input): Promise<Result> {
   }
 }
 
+
+export async function getMyOrders(idToken: string): Promise<MyOrdersResult> {
+  try {
+    const user = await getUserFromToken(idToken);
+    if (!user) return { ok: false, message: "Please sign in to see your orders." };
+
+    const rows = await prisma.order.findMany({
+      where: { userId: user.id },
+      orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+      take: 100,
+      select: {
+        id: true,
+        ref: true,
+        total: true,
+        status: true,
+        paymentMethod: true,
+        paymentStatus: true,
+        createdAt: true,
+        address: true,
+        city: true,
+        state: true,
+        pincode: true,
+        items: { select: { id: true, productId: true, title: true, qty: true, price: true } },
+      },
+    });
+
+    return {
+      ok: true,
+      orders: rows.map(({ address, city, state, pincode, createdAt, ...o }) => ({
+        ...o,
+        createdAt: createdAt.toISOString(),
+        address: { address, city, state, pincode },
+      })),
+    };
+  } catch (err) {
+    console.error("getMyOrders failed", err);
+    return { ok: false, message: "We could not load your orders. Please try again." };
+  }
+}

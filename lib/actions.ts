@@ -165,24 +165,23 @@ export async function placeOrder(_prev: FormState, fd: FormData): Promise<FormSt
       }
 
       return tx.order.create({
-        data: {
-          ref: makeRef("ORD"),
-          userId: user!.id,
-          name: s.values.name,
-          phone: s.values.phone,
-          address: {
-            address: s.values.address,
-            city: s.values.city,
-            state: s.values.state,
-            pincode: s.values.pincode,
-          },
-          total,
-          paymentMethod: method as "COD" | "UPI",
-          upiTxnId: method === "UPI" ? s.values.utr : null,
-          items: { create: items },
-        },
-        select: { ref: true },
-      });
+    data: {
+      ref: makeRef("ORD"),
+      userId: user!.id,
+      name: s.values.name,
+      phone: s.values.phone,
+      address: s.values.address,
+      city: s.values.city,
+      state: s.values.state,
+      pincode: s.values.pincode,
+      subtotal: total,
+      total,
+      paymentMethod: method as "COD" | "UPI",
+      upiTxnId: method === "UPI" ? s.values.utr : null,
+      items: { create: items },
+    },
+  select: { ref: true },
+});
     });
 
     return { ...s, ok: true, ref: order.ref };

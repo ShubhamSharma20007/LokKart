@@ -5,21 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { formatINR } from "@/lib/products";
 
-export type CodEstimateData = {
-  serviceable: true;
-  courier: string;
-  etaDays: number;
-  shipping: number;
-  codCharge: number;
-  total: number;
-};
+import { useCodEstimate, type CodEstimateData, type CodState } from "@/lib/use-cod-estimate";
 
-type State =
-  | { status: "idle" }
-  | { status: "loading" }
-  | { status: "error"; message: string }
-  | { status: "unserviceable" }
-  | { status: "ok"; data: CodEstimateData };
+export type { CodEstimateData };
 
 export function CodEstimate({
   subtotal,
@@ -33,49 +21,15 @@ export function CodEstimate({
   onChange?: (data: CodEstimateData | null) => void;
 }) {
   const [pincode, setPincode] = useState(initialPincode);
-  const [state, setState] = useState<State>({ status: "idle" });
+  const state = useCodEstimate(pincode, subtotal, qty);
 
   useEffect(() => {
-    if (!/^[1-9]\d{5}$/.test(pincode) || subtotal <= 0) {
-      setState({ status: "idle" });
+    if (state.status === "ok") {
+      onChange?.(state.data);
+    } else {
       onChange?.(null);
-      return;
     }
-
-    const ctrl = new AbortController();
-    setState({ status: "loading" });
-
-    const timer = setTimeout(async () => {
-      try {
-        const res = await fetch("/api/shipping/cod-estimate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pincode, orderValue: subtotal, qty }),
-          signal: ctrl.signal,
-        });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json?.error ?? "Failed");
-
-        if (json.serviceable) {
-          setState({ status: "ok", data: json });
-          onChange?.(json);
-        } else {
-          setState({ status: "unserviceable" });
-          onChange?.(null);
-        }
-      } catch (e) {
-        if (ctrl.signal.aborted) return;
-        setState({ status: "error", message: e instanceof Error ? e.message : "Failed" });
-        onChange?.(null);
-      }
-    }, 400);
-
-    return () => {
-      clearTimeout(timer);
-      ctrl.abort();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pincode, subtotal, qty]);
+  }, [state, onChange]);
 
   return (
     <div className="space-y-2">

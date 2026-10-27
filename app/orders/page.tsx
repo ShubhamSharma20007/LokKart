@@ -9,12 +9,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/components/auth-provider";
 import { auth } from "@/hooks/useFirebaseAuth";
-import { getMyOrders, type OrderView } from "@/lib/order-actions";
+import { getMyOrders, type MyOrder } from "@/lib/order-actions";
 import { formatINR } from "@/lib/products";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const statusLabel: Record<OrderView["status"], string> = {
+const statusLabel: Record<MyOrder["status"], string> = {
   PLACED: "Order placed",
   CONFIRMED: "Confirmed",
   SHIPPED: "Shipped",
@@ -22,7 +22,7 @@ const statusLabel: Record<OrderView["status"], string> = {
   CANCELLED: "Cancelled",
 };
 
-const statusVariant: Record<OrderView["status"], "secondary" | "default" | "signal" | "destructive"> = {
+const statusVariant: Record<MyOrder["status"], "secondary" | "default" | "signal" | "destructive"> = {
   PLACED: "secondary",
   CONFIRMED: "default",
   SHIPPED: "signal",
@@ -30,7 +30,7 @@ const statusVariant: Record<OrderView["status"], "secondary" | "default" | "sign
   CANCELLED: "destructive",
 };
 
-function paymentText(o: OrderView) {
+function paymentText(o: MyOrder) {
   if (o.paymentMethod === "COD") return "Cash on Delivery";
   if (o.paymentStatus === "PAID") return "UPI · Paid";
   if (o.paymentStatus === "FAILED") return "UPI · Payment failed";

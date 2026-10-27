@@ -18,17 +18,19 @@ export type CodState =
   | { status: "unserviceable" }
   | { status: "ok"; data: CodEstimateData };
 
+const IDLE_STATE: CodState = { status: "idle" };
+const LOADING_STATE: CodState = { status: "loading" };
+
 export function useCodEstimate(pincode: string, subtotal: number, qty: number, enabled = true): CodState {
-  const [state, setState] = useState<CodState>({ status: "idle" });
+  const isValid = enabled && /^[1-9]\d{5}$/.test(pincode) && subtotal > 0;
+  const currentKey = isValid ? `${pincode}:${subtotal}:${qty}` : "";
+
+  const [result, setResult] = useState<{ key: string; state: CodState } | null>(null);
 
   useEffect(() => {
-    if (!enabled || !/^[1-9]\d{5}$/.test(pincode) || subtotal <= 0) {
-      setState({ status: "idle" });
-      return;
-    }
+    if (!isValid) return;
 
     const ctrl = new AbortController();
-    setState({ status: "loading" });
 
     const timer = setTimeout(async () => {
       try {
@@ -40,10 +42,16 @@ export function useCodEstimate(pincode: string, subtotal: number, qty: number, e
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json?.error ?? "Failed");
-        setState(json.serviceable ? { status: "ok", data: json } : { status: "unserviceable" });
+        setResult({
+          key: currentKey,
+          state: json.serviceable ? { status: "ok", data: json } : { status: "unserviceable" },
+        });
       } catch (e) {
         if (ctrl.signal.aborted) return;
-        setState({ status: "error", message: e instanceof Error ? e.message : "Failed" });
+        setResult({
+          key: currentKey,
+          state: { status: "error", message: e instanceof Error ? e.message : "Failed" },
+        });
       }
     }, 400);
 
@@ -51,7 +59,15 @@ export function useCodEstimate(pincode: string, subtotal: number, qty: number, e
       clearTimeout(timer);
       ctrl.abort();
     };
-  }, [pincode, subtotal, qty, enabled]);
+  }, [isValid, currentKey, pincode, subtotal, qty]);
 
-  return state;
+  if (!isValid) {
+    return IDLE_STATE;
+  }
+
+  if (!result || result.key !== currentKey) {
+    return LOADING_STATE;
+  }
+
+  return result.state;
 }

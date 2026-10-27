@@ -2,18 +2,15 @@
 
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { Loader2, LogOut, Moon, Package, Settings, Sun, UserRound, PlusSquare, ClipboardList } from "lucide-react";
+import { Loader2, LogOut, Moon, Package, Sun, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useMounted } from "@/lib/use-mounted";
 import { useAuth } from "./auth-provider";
+
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 function GoogleMark() {
   return (
@@ -58,62 +55,34 @@ export function AuthButton() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        aria-label="Account menu"
-        className="ml-1 rounded-full outline-none ring-1 ring-border transition-shadow hover:ring-2 hover:ring-primary/40 focus-visible:ring-3 focus-visible:ring-ring/50 data-[popup-open]:ring-2 data-[popup-open]:ring-primary/40"
-      >
-        <Avatar src={user.photoUrl} name={user.name} className="size-9" />
+      <DropdownMenuTrigger className="rounded-full outline-none transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+        <Avatar src={user.photoUrl} name={user.name} className="size-9 ring-1 ring-border" />
       </DropdownMenuTrigger>
-
-      <DropdownMenuContent>
-        <div className="mb-2 flex items-center gap-3 rounded-lg bg-muted/60 p-3">
-          <Avatar src={user.photoUrl} name={user.name} className="size-10 shrink-0" />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{user.name}</p>
-            <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel className="font-normal">
+          <div className="flex flex-col space-y-0.5">
+            <p className="text-sm font-medium leading-none">{user.name}</p>
+            <p className="text-xs leading-none text-muted-foreground truncate">{user.email}</p>
           </div>
-        </div>
-
-        <DropdownMenuCheckboxItem
-          checked={isDark}
-          onCheckedChange={(on) => setTheme(on ? "dark" : "light")}
-        >
-          {isDark ? <Moon aria-hidden /> : <Sun aria-hidden />}
-          <span className="flex-1">Dark mode</span>
-          <span
-            aria-hidden
-            className={`relative h-5 w-9 rounded-full transition-colors ${isDark ? "bg-primary" : "bg-input"}`}
-          >
-            <span
-              className={`absolute top-0.5 left-0.5 size-4 rounded-full bg-background shadow transition-transform ${isDark ? "translate-x-4" : ""}`}
-            />
-          </span>
-        </DropdownMenuCheckboxItem>
-
-        <DropdownMenuItem render={<Link href="/orders" />}>
-          <Package aria-hidden /> My orders
-        </DropdownMenuItem>
-        <DropdownMenuItem render={<Link href="/profile" />}>
-          <UserRound aria-hidden /> Profile
-        </DropdownMenuItem>
-        {user.role === "ADMIN" && (
-          <DropdownMenuItem render={<Link href="/admin/products/new" />}>
-            <PlusSquare aria-hidden /> Add product
-          </DropdownMenuItem>
-        )}
-            {user.role === "ADMIN" && (
-          <DropdownMenuItem render={<Link href="/admin/orders" />}>
-            <ClipboardList aria-hidden /> Manage orders
-          </DropdownMenuItem>
-        )}
-        {/* <DropdownMenuItem render={<Link href="/settings" />}>
-          <Settings aria-hidden /> Settings
-        </DropdownMenuItem> */}
-
+        </DropdownMenuLabel>
         <DropdownMenuSeparator />
-
-        <DropdownMenuItem destructive onClick={signOut}>
-          <LogOut aria-hidden /> Log out
+        <DropdownMenuItem render={<Link href="/profile" className="flex w-full items-center gap-2" />}>
+          <UserRound className="size-4" />
+          <span>Profile</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem render={<Link href="/orders" className="flex w-full items-center gap-2" />}>
+          <Package className="size-4" />
+          <span>My orders</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => setTheme(isDark ? "light" : "dark")} className="cursor-pointer">
+          {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+          <span>{isDark ? "Light mode" : "Dark mode"}</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant="destructive" onClick={signOut} className="cursor-pointer">
+          <LogOut className="size-4" />
+          <span>Sign out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

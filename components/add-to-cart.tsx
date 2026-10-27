@@ -17,9 +17,13 @@ export function AddToCart({ product, buyNow = false }: { product: CartProduct; b
   const inCart = useAppSelector((s) => s.cart.items.find((i) => i.id === product.id));
   const mounted = useMounted();
 
-  if (product.stock < 1) {
-    return <Button disabled className="h-9 w-full">Out of stock</Button>;
-  }
+if (product.stock < 1) {
+  return (
+    <Button disabled className="h-9 min-w-0 flex-1">
+      Out of stock
+    </Button>
+  );
+}
 
   const put = () =>
     dispatch(addItem({ id: product.id, title: product.title, price: product.price, mrp: product.mrp, stock: product.stock }));

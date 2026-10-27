@@ -18,7 +18,7 @@ export function ProductCard({ product }: { product: StoreProduct }) {
           <ProductImage
             product={product}
             width={640}
-            className="transition-transform group-hover:scale-105"
+            className={cn("transition-transform group-hover:scale-105", product.stock < 1 && "opacity-50 grayscale")}
             iconClassName="size-14 transition-transform group-hover:scale-110"
           />
           <Badge variant="signal" className="absolute top-3 right-3 h-6 px-2.5 text-sm font-bold">
