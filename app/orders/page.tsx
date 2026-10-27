@@ -41,7 +41,7 @@ const dateFmt = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short
 
 export default function OrdersPage() {
   const { user, loading, signIn, signingIn } = useAuth();
-  const [orders, setOrders] = useState<OrderView[] | null>(null);
+  const [orders, setOrders] = useState<MyOrder[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
 

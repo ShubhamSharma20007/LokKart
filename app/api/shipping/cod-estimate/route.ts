@@ -1,27 +1,30 @@
 import { NextResponse } from "next/server";
-import { getCodEstimate, isValidPincode } from "@/lib/shipping";
+import { getCartShippingInfo, getCodEstimate, isValidPincode } from "@/lib/shipping";
 
+// POST /api/shipping/cod-estimate  { pincode, items: [{ id, qty }] }
+// -> { serviceable: true, courier, etaDays, shipping, codCharge, total } | { serviceable: false }
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => null);
-  const pincode = body?.pincode;
-  const orderValue = Number(body?.orderValue);
-  const qty = Number(body?.qty ?? 1);
+  let body: { pincode?: unknown; items?: unknown } | null = null;
+  try {
+    body = await req.json();
+  } catch {}
 
-  if (!isValidPincode(pincode)) {
+  if (!isValidPincode(body?.pincode)) {
     return NextResponse.json({ error: "Enter a valid 6-digit pincode" }, { status: 400 });
-  }
-  if (!Number.isFinite(orderValue) || orderValue <= 0) {
-    return NextResponse.json({ error: "Invalid order value" }, { status: 400 });
   }
 
   try {
+    const cart = await getCartShippingInfo(body?.items);
+    if (!cart.ok) return NextResponse.json({ error: cart.message }, { status: 400 });
+
     const estimate = await getCodEstimate({
-      deliveryPincode: pincode,
-      orderValueRupees: orderValue,
-      qty: Number.isFinite(qty) ? qty : 1,
+      deliveryPincode: body.pincode,
+      orderValueRupees: cart.subtotal,
+      items: cart.items,
     });
-    return NextResponse.json(estimate);
-  } catch {
-    return NextResponse.json({ error: "Could not get shipping rates" }, { status: 502 });
+    return NextResponse.json(estimate, { headers: { "Cache-Control": "no-store" } });
+  } catch (err) {
+    console.error("cod-estimate failed", err);
+    return NextResponse.json({ error: "Could not check delivery right now. Please try again." }, { status: 502 });
   }
 }

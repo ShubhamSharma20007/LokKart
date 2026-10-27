@@ -6,6 +6,32 @@ import { categories, getProduct } from "@/lib/products";
 const makeRef = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 const fail = (s: FormState, message = "Fix the highlighted fields and try again."): FormState => ({ ...s, ok: false, message });
 
+// Packed size of one piece. The courier prices delivery from these, so they are required.
+const SHIPPING_RULES = {
+  weightG: { label: "Weight", required: true, positive: true },
+  lengthCm: { label: "Length", required: true, positive: true },
+  widthCm: { label: "Width", required: true, positive: true },
+  heightCm: { label: "Height", required: true, positive: true },
+};
+const SHIPPING_LIMITS = { weightG: [1, 50000], lengthCm: [1, 200], widthCm: [1, 200], heightCm: [1, 200] } as const;
+
+function checkShipping(s: FormState) {
+  for (const [k, [min, max]] of Object.entries(SHIPPING_LIMITS)) {
+    if (s.errors[k]) continue;
+    const n = Number(s.values[k]);
+    if (!Number.isInteger(n) || n < min || n > max) {
+      s.errors[k] = k === "weightG" ? `Enter whole grams, ${min} to ${max}` : `Enter whole cm, ${min} to ${max}`;
+    }
+  }
+}
+
+const shippingData = (s: FormState) => ({
+  weightG: Number(s.values.weightG),
+  lengthCm: Number(s.values.lengthCm),
+  widthCm: Number(s.values.widthCm),
+  heightCm: Number(s.values.heightCm),
+});
+
 // Admin: add a product. Saves the ImageKit url and fileId so the image can be deleted later.
 export async function createProduct(_prev: FormState, fd: FormData): Promise<FormState> {
   const s = validate(fd, {
@@ -17,11 +43,13 @@ export async function createProduct(_prev: FormState, fd: FormData): Promise<For
     price: { label: "Price", required: true, positive: true },
     mrp: { label: "MRP", required: true, positive: true },
     stock: { label: "Stock", required: true, positive: true },
+    ...SHIPPING_RULES,
   });
   if (Number(s.values.price) >= Number(s.values.mrp)) s.errors.price ||= "Price must be below MRP";
   for (const k of ["price", "mrp", "stock"]) {
     if (!s.errors[k] && !Number.isInteger(Number(s.values[k]))) s.errors[k] = "Enter a whole number";
   }
+  checkShipping(s);
 
   // Only accept images that were uploaded to our own ImageKit account.
   const { imageUrl, imageUrlFileId: fileId } = s.values;
@@ -48,6 +76,7 @@ export async function createProduct(_prev: FormState, fd: FormData): Promise<For
         price: Number(s.values.price),
         mrp: Number(s.values.mrp),
         stock: Number(s.values.stock),
+        ...shippingData(s),
         imageUrl: imageUrl || null,
         imageFileId: imageUrl ? fileId : null,
       },
@@ -208,12 +237,14 @@ export async function updateProduct(_prev: FormState, fd: FormData): Promise<For
     price: { label: "Price", required: true, positive: true },
     mrp: { label: "MRP", required: true, positive: true },
     stock: { label: "Stock", required: true, nonNegative: true },
+    ...SHIPPING_RULES,
   });
   if (!(categories as readonly string[]).includes(s.values.category)) s.errors.category ||= "Choose a category";
   if (Number(s.values.price) >= Number(s.values.mrp)) s.errors.price ||= "Price must be below MRP";
   for (const k of ["price", "mrp", "stock"]) {
     if (!s.errors[k] && !Number.isInteger(Number(s.values[k]))) s.errors[k] = "Enter a whole number";
   }
+  checkShipping(s);
 
   const { imageUrl, imageUrlFileId: fileId } = s.values;
   const endpoint = process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT;
@@ -249,6 +280,7 @@ export async function updateProduct(_prev: FormState, fd: FormData): Promise<For
         price: Number(s.values.price),
         mrp: Number(s.values.mrp),
         stock: Number(s.values.stock),
+        ...shippingData(s),
         imageUrl: imageUrl || null,
         imageFileId: newFileId,
       },

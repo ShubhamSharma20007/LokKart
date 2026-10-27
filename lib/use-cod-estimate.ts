@@ -18,12 +18,18 @@ export type CodState =
   | { status: "unserviceable" }
   | { status: "ok"; data: CodEstimateData };
 
+// What the browser sends: ids and quantities only. The server reads price and
+// packed size from the database.
+export type CartLine = { id: string; qty: number };
+
 const IDLE_STATE: CodState = { status: "idle" };
 const LOADING_STATE: CodState = { status: "loading" };
 
-export function useCodEstimate(pincode: string, subtotal: number, qty: number, enabled = true): CodState {
-  const isValid = enabled && /^[1-9]\d{5}$/.test(pincode) && subtotal > 0;
-  const currentKey = isValid ? `${pincode}:${subtotal}:${qty}` : "";
+export function useCodEstimate(pincode: string, lines: CartLine[], enabled = true): CodState {
+  // A string, so the effect only re-runs when the cart really changes.
+  const linesKey = JSON.stringify(lines.map((l) => [l.id, l.qty]));
+  const isValid = enabled && /^[1-9]\d{5}$/.test(pincode) && lines.length > 0;
+  const currentKey = isValid ? `${pincode}:${linesKey}` : "";
 
   const [result, setResult] = useState<{ key: string; state: CodState } | null>(null);
 
@@ -31,13 +37,14 @@ export function useCodEstimate(pincode: string, subtotal: number, qty: number, e
     if (!isValid) return;
 
     const ctrl = new AbortController();
+    const items = (JSON.parse(linesKey) as [string, number][]).map(([id, qty]) => ({ id, qty }));
 
     const timer = setTimeout(async () => {
       try {
         const res = await fetch("/api/shipping/cod-estimate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pincode, orderValue: subtotal, qty }),
+          body: JSON.stringify({ pincode, items }),
           signal: ctrl.signal,
         });
         const json = await res.json();
@@ -59,7 +66,7 @@ export function useCodEstimate(pincode: string, subtotal: number, qty: number, e
       clearTimeout(timer);
       ctrl.abort();
     };
-  }, [isValid, currentKey, pincode, subtotal, qty]);
+  }, [isValid, currentKey, pincode, linesKey]);
 
   if (!isValid) {
     return IDLE_STATE;

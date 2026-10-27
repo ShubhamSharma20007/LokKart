@@ -70,7 +70,8 @@ export async function listAdminOrders(
         upiTxnId: o.upiTxnId,
         status: o.status,
         createdAt: o.createdAt.toISOString(),
-        address: (o.address ?? {}) as AdminOrder["address"],
+        address: { address: o.address, city: o.city, state: o.state, pincode: o.pincode },
+        // address: (o.address ?? {}) as AdminOrder["address"],
         items: o.items,
       })),
     };

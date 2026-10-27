@@ -5,23 +5,21 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { formatINR } from "@/lib/products";
 
-import { useCodEstimate, type CodEstimateData, type CodState } from "@/lib/use-cod-estimate";
+import { useCodEstimate, type CartLine, type CodEstimateData } from "@/lib/use-cod-estimate";
 
 export type { CodEstimateData };
 
 export function CodEstimate({
-  subtotal,
-  qty,
+  items,
   initialPincode = "",
   onChange,
 }: {
-  subtotal: number; // rupees
-  qty: number;
+  items: CartLine[];
   initialPincode?: string;
   onChange?: (data: CodEstimateData | null) => void;
 }) {
   const [pincode, setPincode] = useState(initialPincode);
-  const state = useCodEstimate(pincode, subtotal, qty);
+  const state = useCodEstimate(pincode, items);
 
   useEffect(() => {
     if (state.status === "ok") {

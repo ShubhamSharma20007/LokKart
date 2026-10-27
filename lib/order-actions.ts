@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getCodEstimate } from "@/lib/shipping";
+import { getCodEstimate, type ShipItem } from "@/lib/shipping";
 import { verifyFirebaseToken } from "@/lib/firebase-token";
 import { getUserFromToken } from "@/lib/imagekit-server";
 type Input = {
@@ -61,12 +61,12 @@ export async function placeOrder(input: Input): Promise<Result> {
 
   const products = await prisma.product.findMany({
     where: { id: { in: wanted.map((i) => i.id) } },
-    select: { id: true, title: true, price: true, stock: true },
+    select: { id: true, title: true, price: true, stock: true, weightG: true, lengthCm: true, widthCm: true, heightCm: true },
   });
   const byId = new Map(products.map((p) => [p.id, p]));
 
   let subtotal = 0;
-  let qty = 0;
+  const ship: ShipItem[] = [];
   const lines: { productId: string; title: string; price: number; qty: number }[] = [];
 
   for (const i of wanted) {
@@ -74,7 +74,7 @@ export async function placeOrder(input: Input): Promise<Result> {
     if (!p) return { ok: false, message: "A product in your cart is no longer available." };
     if (p.stock < i.qty) return { ok: false, message: `Only ${p.stock} left for "${p.title}".` };
     subtotal += p.price * i.qty;
-    qty += i.qty;
+    ship.push({ qty: i.qty, weightG: p.weightG, lengthCm: p.lengthCm, widthCm: p.widthCm, heightCm: p.heightCm });
     lines.push({ productId: p.id, title: p.title, price: p.price, qty: i.qty });
   }
 
@@ -83,7 +83,7 @@ export async function placeOrder(input: Input): Promise<Result> {
   let codCharge = 0;
   if (input.payment === "COD") {
     try {
-      const est = await getCodEstimate({ deliveryPincode: a.pincode, orderValueRupees: subtotal, qty });
+      const est = await getCodEstimate({ deliveryPincode: a.pincode, orderValueRupees: subtotal, items: ship });
       if (!est.serviceable) return { ok: false, message: "COD is not available for this pincode." };
       shipping = est.shipping;
       codCharge = est.codCharge;

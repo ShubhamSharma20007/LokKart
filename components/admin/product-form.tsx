@@ -42,6 +42,10 @@ export function ProductForm({
         mrp: String(product.mrp),
         price: String(product.price),
         stock: String(product.stock),
+        weightG: String(product.weightG),
+        lengthCm: String(product.lengthCm),
+        widthCm: String(product.widthCm),
+        heightCm: String(product.heightCm),
       }
     : {};
   const v = (k: string) => state.values[k] ?? initial[k] ?? "";
@@ -118,6 +122,19 @@ export function ProductForm({
         {num("price", "Price (₹)")}
         {num("stock", "Stock")}
       </div>
+
+      <fieldset className="space-y-3 rounded-lg border p-4">
+        <legend className="px-1 text-sm font-medium">Shipping size (one piece, packed)</legend>
+        <p className="text-xs text-muted-foreground">
+          The courier prices delivery from these, so measure the product in its packing.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-4">
+          {num("weightG", "Weight (g)")}
+          {num("lengthCm", "Length (cm)")}
+          {num("widthCm", "Width (cm)")}
+          {num("heightCm", "Height (cm)")}
+        </div>
+      </fieldset>
 
       <div className="flex flex-wrap items-center gap-3 pt-1">
         <SubmitButton pending={pending || uploading}>{editing ? "Save changes" : "Add product"}</SubmitButton>

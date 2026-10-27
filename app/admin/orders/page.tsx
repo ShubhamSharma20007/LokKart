@@ -7,10 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from "@/components/auth-provider";
-import { selectClass } from "@/components/formField";
 import { auth } from "@/hooks/useFirebaseAuth";
 import { listAdminOrders, updateOrder, type AdminOrder } from "@/lib/admin-order-actions";
 import { formatINR } from "@/lib/products";
+import {
+  Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 
 type Filter = "ALL" | "PENDING" | "PAID";
 const FILTERS: { value: Filter; label: string }[] = [
@@ -19,6 +21,7 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "PAID", label: "Paid" },
 ];
 const STATUSES: AdminOrder["status"][] = ["PLACED", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"];
+const statusItems = STATUSES.map((s) => ({ value: s, label: s.charAt(0) + s.slice(1).toLowerCase() }));
 const PAGE_SIZE = 10;
 const dateFmt = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 
@@ -205,17 +208,27 @@ export default function AdminOrdersPage() {
                         )}
                       </TableCell>
                       <TableCell className="pr-4">
-                        <select
-                          aria-label={`Status for ${o.ref}`}
-                          className={selectClass}
+                        <Select
+                          items={statusItems}
                           value={o.status}
                           disabled={locked || busy}
-                          onChange={(e) => change(o, { status: e.target.value as AdminOrder["status"] })}
+                          onValueChange={(v) => {
+                            if (v && v !== o.status) change(o, { status: v as AdminOrder["status"] });
+                          }}
                         >
-                          {STATUSES.map((s) => (
-                            <option key={s} value={s}>{s.charAt(0) + s.slice(1).toLowerCase()}</option>
-                          ))}
-                        </select>
+                          <SelectTrigger className="h-8 w-36" aria-label={`Status for ${o.ref}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              {statusItems.map((s) => (
+                                <SelectItem key={s.value} value={s.value}>
+                                  {s.label}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                     </TableRow>
                   );

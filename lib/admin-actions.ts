@@ -13,6 +13,10 @@ export type AdminProduct = {
   stock: number;
   imageUrl: string | null;
   imageFileId: string | null;
+  weightG: number;
+  lengthCm: number;
+  widthCm: number;
+  heightCm: number;
   createdAt: string;
 };
 
@@ -41,6 +45,7 @@ export async function listAdminProducts(idToken: string, page = 1, pageSize = 10
       select: {
         id: true, title: true, description: true, category: true,
         price: true, mrp: true, stock: true, imageUrl: true, imageFileId: true, createdAt: true,
+        weightG: true, lengthCm: true, widthCm: true, heightCm: true,
       },
     });
 
