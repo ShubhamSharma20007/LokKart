@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-
+import { FREE_SHIPPING_THRESHOLD } from "@/lib/shipping-config";
 const ENDPOINT = "https://api-v2.nimbuspost.com/v2/serviceability";
 const PICKUP_PINCODE = process.env.NEXT_PUBLIC_PICKUP_PINCODE ?? "301001";
 
@@ -67,6 +67,10 @@ export async function getCodEstimate(input: {
   orderValueRupees: number;
   items: ShipItem[];
 }): Promise<CodEstimate> {
+  console.log({
+    input,
+    items:input.items
+  })
   const { deliveryPincode, orderValueRupees, items } = input;
   const orderValuePaise = Math.round(orderValueRupees * 100);
   const packages = buildPackages(items);
@@ -118,13 +122,30 @@ export async function getCodEstimate(input: {
   } else {
     // Cheapest courier by shipping + COD.
     const best = couriers.reduce((a, b) => (b.result.totalPaise < a.result.totalPaise ? b : a));
+    console.log(
+    "NimbusPost courier charges:",
+    couriers.map((c) => ({
+      courier: c.courierDisplayName,
+      shippingPaise: c.result.shippingChargesPaise,
+      codPaise: c.result.codChargesPaise,
+      totalPaise: c.result.totalPaise,
+      codRupees: c.result.codChargesPaise / 100,
+    }))
+  );
+
+    // If the order meets the free-shipping threshold, the store absorbs the
+    // courier cost and the customer pays only the COD handling fee.
+    const freeShipping = orderValueRupees >= FREE_SHIPPING_THRESHOLD;
+    const shippingRupees = freeShipping ? 0 : best.result.shippingChargesPaise / 100;
+    const codChargeRupees = best.result.codChargesPaise / 100;
+  console.log("SHIPPING AMOUNT WITHOUT FREE SHIPPING", best.result.shippingChargesPaise / 100)
     value = {
       serviceable: true,
       courier: best.courierDisplayName,
       etaDays: best.tatDays,
-      shipping: best.result.shippingChargesPaise / 100,
-      codCharge: best.result.codChargesPaise / 100,
-      total: best.result.totalPaise / 100,
+      shipping: shippingRupees,
+      codCharge: codChargeRupees,
+      total: shippingRupees + codChargeRupees,
     };
   }
 
