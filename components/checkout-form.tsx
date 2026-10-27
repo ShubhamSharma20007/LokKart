@@ -179,9 +179,9 @@ export function CheckoutForm() {
 
   const subtotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
   const mrpTotal = items.reduce((sum, i) => sum + i.mrp * i.qty, 0);
-  const qty = items.reduce((sum, i) => sum + i.qty, 0);
 
-  const cod = useCodEstimate(form.pincode, subtotal, qty, payment === "COD");
+  const cartLines = items.map((i) => ({ id: i.id, qty: i.qty }));
+  const cod = useCodEstimate(form.pincode, cartLines, payment === "COD");
   const codCharges = payment === "COD" && cod.status === "ok" ? cod.data.total : 0;
   const grandTotal = subtotal + codCharges;
   const codBlocked = payment === "COD" && cod.status !== "ok";

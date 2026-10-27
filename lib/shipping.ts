@@ -37,21 +37,29 @@ export function isValidPincode(p: unknown): p is string {
   return typeof p === "string" && /^[1-9]\d{5}$/.test(p);
 }
 
-// Packs the whole cart into one box: weights add up, the box is as long and wide as
-// the biggest item, and items are stacked on top of each other for the height.
-// This is an estimate. The courier re-measures the real parcel.
-export function buildParcel(items: ShipItem[]) {
-  let weight = 0;
-  let length = 0;
-  let width = 0;
-  let height = 0;
-  for (const i of items) {
-    weight += i.weightG * i.qty;
-    length = Math.max(length, i.lengthCm);
-    width = Math.max(width, i.widthCm);
-    height += i.heightCm * i.qty;
+// Build individual packages — one physical parcel per item per qty.
+// This mirrors how Amazon / Flipkart / Meesho price shipments:
+// each product ships in its own box so one item's large dimensions
+// never inflate the volumetric weight of the rest of the order.
+// NimbusPost's `packages[]` array accepts multiple boxes and sums
+// the charges correctly.
+export function buildPackages(
+  items: ShipItem[],
+): Array<{ weight: number; length: number; width: number; height: number }> {
+  const pkgs: Array<{ weight: number; length: number; width: number; height: number }> = [];
+  for (const item of items) {
+    for (let i = 0; i < item.qty; i++) {
+      pkgs.push({
+        weight: Math.max(item.weightG, 1),
+        length: Math.max(item.lengthCm, 1),
+        width: Math.max(item.widthCm, 1),
+        height: Math.max(item.heightCm, 1),
+      });
+    }
   }
-  return { weight, length, width, height };
+  // Fallback: should never happen, but guard against an empty array
+  if (pkgs.length === 0) pkgs.push({ weight: 100, length: 10, width: 10, height: 5 });
+  return pkgs;
 }
 
 export async function getCodEstimate(input: {
@@ -61,15 +69,17 @@ export async function getCodEstimate(input: {
 }): Promise<CodEstimate> {
   const { deliveryPincode, orderValueRupees, items } = input;
   const orderValuePaise = Math.round(orderValueRupees * 100);
-  const parcel = buildParcel(items);
+  const packages = buildPackages(items);
 
-  const key = `${deliveryPincode}|${orderValuePaise}|${parcel.weight}x${parcel.length}x${parcel.width}x${parcel.height}`;
+  // Cache key: pincode + order value + every package's dimensions
+  const pkgKey = packages.map((p) => `${p.weight}x${p.length}x${p.width}x${p.height}`).join(",");
+  const key = `${deliveryPincode}|${orderValuePaise}|${pkgKey}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < TTL) return hit.value;
 
   // Server-only variables: no NEXT_PUBLIC_ prefix, so they can never reach the browser.
-  const apiKey = process.env.NIMBUS_API_KEY;
-  const apiSecret = process.env.NIMBUS_API_SECRET;
+  const apiKey = process.env.NIMBUS_API_KEY ?? process.env.NEXT_PUBLIC_NIMBUS_API_KEY;
+  const apiSecret = process.env.NIMBUS_API_SECRET ?? process.env.NEXT_PUBLIC_NIMBUS_API_SECRET;
 
   if (!apiKey || !apiSecret) {
     console.error("Missing NimbusPost API credentials in environment variables.");
@@ -87,7 +97,7 @@ export async function getCodEstimate(input: {
       pickupPincode: PICKUP_PINCODE,
       deliveryPincode,
       paymentMode: "cod",
-      packages: [parcel],
+      packages,          // ← array of individual parcels, not one merged box
       orderValuePaise,
     }),
     signal: AbortSignal.timeout(8000),
