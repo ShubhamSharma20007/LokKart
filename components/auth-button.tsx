@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { Loader2, LogOut, Moon, Package, Sun, UserRound } from "lucide-react";
+import {
+  ClipboardList, Loader2, LogOut, Moon, Package, PackagePlus, Sun, UserRound,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMounted } from "@/lib/use-mounted";
 import { useAuth } from "./auth-provider";
@@ -53,6 +55,8 @@ export function AuthButton() {
     );
   }
 
+  const isAdmin = user.role === "ADMIN";
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="rounded-full outline-none transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
@@ -62,10 +66,11 @@ export function AuthButton() {
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-0.5">
             <p className="text-sm font-medium leading-none">{user.name}</p>
-            <p className="text-xs leading-none text-muted-foreground truncate">{user.email}</p>
+            <p className="truncate text-xs leading-none text-muted-foreground">{user.email}</p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+
         <DropdownMenuItem render={<Link href="/profile" className="flex w-full items-center gap-2" />}>
           <UserRound className="size-4" />
           <span>Profile</span>
@@ -74,6 +79,22 @@ export function AuthButton() {
           <Package className="size-4" />
           <span>My orders</span>
         </DropdownMenuItem>
+
+        {isAdmin && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Admin</DropdownMenuLabel>
+            <DropdownMenuItem render={<Link href="/admin/products/new" className="flex w-full items-center gap-2" />}>
+              <PackagePlus className="size-4" />
+              <span>Add / manage products</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem render={<Link href="/admin/orders" className="flex w-full items-center gap-2" />}>
+              <ClipboardList className="size-4" />
+              <span>Customer orders</span>
+            </DropdownMenuItem>
+          </>
+        )}
+
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => setTheme(isDark ? "light" : "dark")} className="cursor-pointer">
           {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
