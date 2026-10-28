@@ -200,8 +200,15 @@ export default function AdminProductsPage() {
                   <TableCell className="max-w-64 truncate font-medium">{p.title}</TableCell>
                   <TableCell><Badge variant="secondary">{p.category}</Badge></TableCell>
                   <TableCell className="text-right">
-                    <span className="font-medium">{formatINR(p.price)}</span>{" "}
-                    <span className="text-xs text-muted-foreground line-through">{formatINR(p.mrp)}</span>
+                    <div>
+                      <span className="font-semibold text-primary">{formatINR(p.price)}</span>{" "}
+                      <span className="text-xs text-muted-foreground line-through">{formatINR(p.mrp)}</span>
+                    </div>
+                    {p.shippingBuffer > 0 && (
+                      <div className="text-[11px] text-muted-foreground">
+                        Base {formatINR(p.basePrice > 0 ? p.basePrice : p.price - p.shippingBuffer)} + Ship {formatINR(p.shippingBuffer)}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     {p.stock < 1 ? <Badge variant="destructive">Out of stock</Badge> : p.stock.toLocaleString("en-IN")}

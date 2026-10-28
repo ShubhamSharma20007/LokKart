@@ -32,7 +32,7 @@ import { useMounted } from "@/lib/use-mounted";
 import { usePincodeLookup } from "@/lib/use-pincode-lookup";
 import { cn } from "@/lib/utils";
 import { QRCodeSVG } from "qrcode.react";
-import { FREE_SHIPPING_THRESHOLD } from "@/lib/shipping-config";
+
 
 const UPI_ID = process.env.NEXT_PUBLIC_UPI_ID;
 const UPI_NAME = process.env.NEXT_PUBLIC_UPI_NAME ?? "Bachatnix";
@@ -180,7 +180,7 @@ export function CheckoutForm() {
 
   const subtotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
   const mrpTotal = items.reduce((sum, i) => sum + i.mrp * i.qty, 0);
-  const hasFreeSipping = subtotal >= FREE_SHIPPING_THRESHOLD;
+
 
   const cartLines = items.map((i) => ({ id: i.id, qty: i.qty }));
   const cod = useCodEstimate(form.pincode, cartLines, payment === "COD");
@@ -494,16 +494,12 @@ export function CheckoutForm() {
                   <div className="flex items-center gap-2">
                     <Banknote className="size-4 text-primary" />
                     <span className="font-semibold text-sm">Cash on Delivery</span>
-                    {hasFreeSipping && (
-                      <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-                        Free Shipping
-                      </span>
-                    )}
+                    <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                      Free Shipping
+                    </span>
                   </div>
                   <p className="text-xs text-muted-foreground font-normal leading-relaxed">
-                    {hasFreeSipping
-                      ? `Free shipping on orders above ${formatINR(FREE_SHIPPING_THRESHOLD)}. Small COD handling fee applies.`
-                      : `Add more items to get free shipping above ${formatINR(FREE_SHIPPING_THRESHOLD)}.`}
+                    Free shipping on all orders. Nominal COD handling fee applies.
                   </p>
                 </div>
               </Label>
@@ -568,22 +564,20 @@ export function CheckoutForm() {
                 </p>
               )}
 
-              {/* Free shipping banner — always visible so user knows how to qualify */}
-              {payment === "COD" && !hasFreeSipping && (
-                <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-400">
-                  <Package className="size-3.5 shrink-0" />
-                  Add {formatINR(FREE_SHIPPING_THRESHOLD - subtotal)} more for <strong>FREE shipping</strong>
-                </div>
-              )}
+              {/* Free delivery badge */}
+              <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                <Package className="size-3.5 shrink-0" />
+                All items include <strong>FREE Delivery</strong>
+              </div>
 
               {payment === "COD" && (
                 <div aria-live="polite" className="space-y-2">
                   {cod.status === "idle" && (
-                    <p className="text-muted-foreground">Enter your pincode to see delivery charges.</p>
+                    <p className="text-muted-foreground">Enter your pincode to check delivery.</p>
                   )}
                   {cod.status === "loading" && (
                     <p className="flex items-center gap-2 text-muted-foreground">
-                      <Spinner /> Checking delivery charges...
+                      <Spinner /> Checking delivery...
                     </p>
                   )}
                   {cod.status === "unserviceable" && (
@@ -594,11 +588,7 @@ export function CheckoutForm() {
                     <>
                       <p className="flex justify-between">
                         <span>Shipping</span>
-                        {cod.data.shipping === 0 ? (
-                          <span className="font-semibold text-emerald-600 dark:text-emerald-400">FREE</span>
-                        ) : (
-                          <span>{formatINR(cod.data.shipping)}</span>
-                        )}
+                        <span className="font-semibold text-emerald-600 dark:text-emerald-400">FREE</span>
                       </p>
                       <p className="flex justify-between">
                         <span>COD fee</span>

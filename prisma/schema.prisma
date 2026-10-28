@@ -45,22 +45,24 @@ model User {
 }
 
 model Product {
-  id          String      @id @default(cuid())
-  title       String
-  description String
-  category    String
-  price       Int
-  mrp         Int
-  stock       Int
-  imageUrl    String?
-  imageFileId String?
-  // Packed size of ONE piece. Used to price delivery. Defaults match the old fixed values.
-  weightG     Int         @default(200)
-  lengthCm    Int         @default(25)
-  widthCm     Int         @default(20)
-  heightCm    Int         @default(5)
-  createdAt   DateTime    @default(now())
-  orderItems  OrderItem[]
+  id              String      @id @default(cuid())
+  title           String
+  description     String
+  category        String
+price           Int
+  mrp             Int
+  stock           Int
+  imageUrl        String?
+  imageFileId     String?
+  // Packed size of ONE piece. Used to price delivery. Defaults to light garment flyer (200g, 25x20x3 cm).
+  weightG         Int         @default(200)
+  lengthCm        Int         @default(25)
+  widthCm         Int         @default(20)
+  heightCm        Int         @default(3)
+  createdAt       DateTime    @default(now())
+  basePrice       Int @default(0)  // buffer ke bina original price
+  shippingBuffer  Int @default(0)
+  orderItems      OrderItem[]
 
   @@index([category])
   @@index([price])

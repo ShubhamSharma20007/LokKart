@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { FREE_SHIPPING_THRESHOLD } from "@/lib/shipping-config";
 const ENDPOINT = "https://api-v2.nimbuspost.com/v2/serviceability";
 const PICKUP_PINCODE = process.env.NEXT_PUBLIC_PICKUP_PINCODE ?? "301001";
 
@@ -9,6 +8,7 @@ export type CodEstimate =
       courier: string;
       etaDays: number;
       shipping: number; // rupees
+      actualShippingExpense: number
       codCharge: number; // rupees
       total: number; // shipping + codCharge, rupees
     }
@@ -67,10 +67,10 @@ export async function getCodEstimate(input: {
   orderValueRupees: number;
   items: ShipItem[];
 }): Promise<CodEstimate> {
-  console.log({
-    input,
-    items:input.items
-  })
+  // console.log({
+  //   input,
+  //   items:input.items
+  // })
   const { deliveryPincode, orderValueRupees, items } = input;
   const orderValuePaise = Math.round(orderValueRupees * 100);
   const packages = buildPackages(items);
@@ -133,19 +133,21 @@ export async function getCodEstimate(input: {
     }))
   );
 
-    // If the order meets the free-shipping threshold, the store absorbs the
-    // courier cost and the customer pays only the COD handling fee.
-    const freeShipping = orderValueRupees >= FREE_SHIPPING_THRESHOLD;
-    const shippingRupees = freeShipping ? 0 : best.result.shippingChargesPaise / 100;
+    // 100% Free Shipping: customer shipping is always 0 (included in product buffer).
+    // Courier expense is tracked for store analytics, customer only pays COD fee on COD orders.
+    const actualShippingExpense = best.result.shippingChargesPaise / 100;
     const codChargeRupees = best.result.codChargesPaise / 100;
-  console.log("SHIPPING AMOUNT WITHOUT FREE SHIPPING", best.result.shippingChargesPaise / 100)
+
+    console.log("ACTUAL SHIPPING EXPENSE: ",actualShippingExpense)
+
     value = {
       serviceable: true,
       courier: best.courierDisplayName,
       etaDays: best.tatDays,
-      shipping: shippingRupees,
+      shipping: 0,
+      actualShippingExpense,
       codCharge: codChargeRupees,
-      total: shippingRupees + codChargeRupees,
+      total: codChargeRupees,
     };
   }
 
@@ -184,3 +186,86 @@ export async function getCartShippingInfo(
   }
   return { ok: true, subtotal, items };
 }
+
+// Sample hub pincodes representing India's major shipping zones (North, West, South, East)
+const BUFFER_HUBS = [
+  { pin: "110001", weight: 0.35 }, // North (Delhi NCR)
+  { pin: "400001", weight: 0.25 }, // West (Mumbai)
+  { pin: "560001", weight: 0.25 }, // South (Bengaluru)
+  { pin: "700001", weight: 0.15 }, // East (Kolkata)
+];
+
+// Fallback courier rate based on billable weight slabs (500g increments)
+// Mirrors standard surface courier cards for India deliveries from Rajasthan
+export function getFallbackShippingBuffer(
+  weightG: number,
+  lengthCm: number,
+  widthCm: number,
+  heightCm: number,
+): number {
+  const volumetricGrams = Math.ceil(
+    (Math.max(lengthCm, 1) * Math.max(widthCm, 1) * Math.max(heightCm, 1)) / 5,
+  );
+  const billableGrams = Math.max(Math.max(weightG, 1), volumetricGrams);
+  const slabs = Math.max(1, Math.ceil(billableGrams / 500));
+  if (slabs === 1) return 70; // 0 - 500g -> ₹70
+  if (slabs === 2) return 100; // 501 - 1000g -> ₹100
+  return 100 + (slabs - 2) * 35; // 1001g+ -> ₹135, ₹170, etc.
+}
+
+// Automatically calculates representative shipping buffer for an item when admin adds/edits product
+export async function calculateShippingBuffer(item: {
+  weightG: number;
+  lengthCm: number;
+  widthCm: number;
+  heightCm: number;
+  basePrice?: number;
+}): Promise<number> {
+  const fallback = getFallbackShippingBuffer(
+    item.weightG,
+    item.lengthCm,
+    item.widthCm,
+    item.heightCm,
+  );
+
+  try {
+    const promises = BUFFER_HUBS.map(async (hub) => {
+      const est = await getCodEstimate({
+        deliveryPincode: hub.pin,
+        orderValueRupees: item.basePrice || 250,
+        items: [
+          {
+            qty: 1,
+            weightG: item.weightG,
+            lengthCm: item.lengthCm,
+            widthCm: item.widthCm,
+            heightCm: item.heightCm,
+          },
+        ],
+      });
+      return { hub, est };
+    });
+
+    const results = await Promise.allSettled(promises);
+    let weighted = 0;
+    let usedWeight = 0;
+
+    for (const r of results) {
+      if (r.status === "fulfilled" && r.value.est.serviceable) {
+        weighted += r.value.est.actualShippingExpense * r.value.hub.weight;
+        usedWeight += r.value.hub.weight;
+      }
+    }
+
+    if (usedWeight > 0) {
+      const avg = weighted / usedWeight;
+      // 10% safety margin, rounded up to nearest ₹5
+      return Math.ceil((avg * 1.1) / 5) * 5;
+    }
+  } catch (err) {
+    console.warn("calculateShippingBuffer: API lookup failed, using fallback slab", err);
+  }
+
+  return fallback;
+}
+

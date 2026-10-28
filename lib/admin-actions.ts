@@ -9,6 +9,8 @@ export type AdminProduct = {
   description: string;
   category: string;
   price: number;
+  basePrice: number;
+  shippingBuffer: number;
   mrp: number;
   stock: number;
   imageUrl: string | null;
@@ -44,7 +46,7 @@ export async function listAdminProducts(idToken: string, page = 1, pageSize = 10
       take: size,
       select: {
         id: true, title: true, description: true, category: true,
-        price: true, mrp: true, stock: true, imageUrl: true, imageFileId: true, createdAt: true,
+        price: true, basePrice: true, shippingBuffer: true, mrp: true, stock: true, imageUrl: true, imageFileId: true, createdAt: true,
         weightG: true, lengthCm: true, widthCm: true, heightCm: true,
       },
     });

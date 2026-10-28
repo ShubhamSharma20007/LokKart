@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "calc-shipping": "tsx -r dotenv/config scripts/calc-shipping-buffer.ts --apply"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

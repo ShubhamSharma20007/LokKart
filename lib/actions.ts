@@ -3,6 +3,7 @@ import { validate, type FormState } from "@/lib/forms";
 import { prisma } from "@/lib/prisma";
 import { deleteImageKitFile, requireAdmin,getUserFromToken } from "../lib/imagekit-server"
 import { categories, getProduct } from "@/lib/products";
+import { calculateShippingBuffer } from "@/lib/shipping";
 const makeRef = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 const fail = (s: FormState, message = "Fix the highlighted fields and try again."): FormState => ({ ...s, ok: false, message });
 
@@ -44,6 +45,7 @@ export async function createProduct(_prev: FormState, fd: FormData): Promise<For
     mrp: { label: "MRP", required: true, positive: true },
     stock: { label: "Stock", required: true, positive: true },
     ...SHIPPING_RULES,
+    
   });
   if (Number(s.values.price) >= Number(s.values.mrp)) s.errors.price ||= "Price must be below MRP";
   for (const k of ["price", "mrp", "stock"]) {
@@ -67,18 +69,35 @@ export async function createProduct(_prev: FormState, fd: FormData): Promise<For
     return fail(s, "Only admins can add products.");
   }
 
+  const basePrice = Number(s.values.price);
+  const mrp = Number(s.values.mrp);
+
+  // Auto-calculate shipping buffer for 100% Free Shipping store
+  const shippingBuffer = await calculateShippingBuffer({
+    ...shippingData(s),
+    basePrice,
+  });
+
+  const finalPrice = basePrice + shippingBuffer;
+  if (finalPrice >= mrp) {
+    s.errors.mrp = `With auto shipping buffer (₹${shippingBuffer}), final selling price reaches ₹${finalPrice}. Please increase MRP to at least ₹${finalPrice + 1} or lower base price.`;
+    return fail(s);
+  }
+
   try {
     const product = await prisma.product.create({
       data: {
         title: s.values.title,
         description: s.values.description,
         category: s.values.category,
-        price: Number(s.values.price),
-        mrp: Number(s.values.mrp),
+        price: finalPrice,
+        mrp: mrp,
         stock: Number(s.values.stock),
         ...shippingData(s),
         imageUrl: imageUrl || null,
         imageFileId: imageUrl ? fileId : null,
+        basePrice: basePrice,
+        shippingBuffer: shippingBuffer,
       },
       select: { id: true },
     });
@@ -246,15 +265,6 @@ export async function updateProduct(_prev: FormState, fd: FormData): Promise<For
   }
   checkShipping(s);
 
-  const { imageUrl, imageUrlFileId: fileId } = s.values;
-  const endpoint = process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT;
-  if (imageUrl) {
-    if (!endpoint || !imageUrl.startsWith(`${endpoint}/`) || !/^[A-Za-z0-9_-]{10,64}$/.test(fileId)) {
-      s.errors.imageUrl = "Upload the image again";
-    }
-  }
-  if (Object.keys(s.errors).length) return fail(s);
-
   try {
     await requireAdmin(String(fd.get("token") ?? ""));
   } catch {
@@ -263,12 +273,37 @@ export async function updateProduct(_prev: FormState, fd: FormData): Promise<For
 
   const existing = await prisma.product.findUnique({
     where: { id: s.values.id },
-    select: { imageFileId: true },
+    select: { imageFileId: true, shippingBuffer: true, imageUrl: true },
   });
   if (!existing) return fail(s, "That product no longer exists.");
 
-  const newFileId = imageUrl ? fileId : null;
+  const { imageUrl, imageUrlFileId: fileId } = s.values;
+  const endpoint = process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT;
+  // Only validate when a new image was uploaded
+  if (imageUrl && imageUrl !== existing.imageUrl) {
+    if (!endpoint || !imageUrl.startsWith(`${endpoint}/`) || !/^[A-Za-z0-9_-]{10,64}$/.test(fileId)) {
+      s.errors.imageUrl = "Upload the image again";
+    }
+  }
+  if (Object.keys(s.errors).length) return fail(s);
+
+  const newFileId = imageUrl ? (imageUrl === existing.imageUrl ? existing.imageFileId : fileId) : null;
   const imageChanged = newFileId !== existing.imageFileId;
+
+  const basePrice = Number(s.values.price);
+  const mrp = Number(s.values.mrp);
+
+  // Auto-calculate shipping buffer based on dimensions/weight
+  const shippingBuffer = await calculateShippingBuffer({
+    ...shippingData(s),
+    basePrice,
+  });
+
+  const finalPrice = basePrice + shippingBuffer;
+  if (finalPrice >= mrp) {
+    s.errors.mrp = `With auto shipping buffer (₹${shippingBuffer}), final selling price reaches ₹${finalPrice}. Please increase MRP to at least ₹${finalPrice + 1} or lower base price.`;
+    return fail(s);
+  }
 
   try {
     await prisma.product.update({
@@ -277,8 +312,10 @@ export async function updateProduct(_prev: FormState, fd: FormData): Promise<For
         title: s.values.title,
         description: s.values.description,
         category: s.values.category,
-        price: Number(s.values.price),
-        mrp: Number(s.values.mrp),
+        price: finalPrice,
+        basePrice: basePrice,
+        shippingBuffer: shippingBuffer,
+        mrp: mrp,
         stock: Number(s.values.stock),
         ...shippingData(s),
         imageUrl: imageUrl || null,

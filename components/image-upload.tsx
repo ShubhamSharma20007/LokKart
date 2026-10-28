@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ImagePlus, Loader2, X } from "lucide-react";
+import { ImagePlus, Loader2, Pencil, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { auth } from "@/hooks/useFirebaseAuth";
 import { getImageKitAuth } from "@/lib/imagekit";
@@ -25,6 +25,14 @@ export function ImageUpload({ name, defaultValue = "", defaultFileId = "", error
   const [preview, setPreview] = useState(defaultValue);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string | undefined>();
+
+  // Synchronize state when defaultValue or defaultFileId changes (e.g. opening different product to edit)
+  useEffect(() => {
+    setUrl(defaultValue);
+    setFileId(defaultFileId);
+    setPreview(defaultValue);
+    setMessage(undefined);
+  }, [defaultValue, defaultFileId]);
 
   useEffect(() => {
     onBusyChange?.(uploading);
@@ -89,9 +97,9 @@ export function ImageUpload({ name, defaultValue = "", defaultFileId = "", error
       setUrl(data.url);
       setFileId(data.fileId);
     } catch (err) {
-      setUrl("");
-      setFileId("");
-      setPreview("");
+      setUrl(defaultValue);
+      setFileId(defaultFileId);
+      setPreview(defaultValue);
       setMessage(err instanceof Error ? err.message : "Upload failed. Please try again.");
       if (inputRef.current) inputRef.current.value = "";
     } finally {
@@ -107,26 +115,91 @@ export function ImageUpload({ name, defaultValue = "", defaultFileId = "", error
       <input type="hidden" name={`${name}FileId`} value={fileId} />
 
       {preview ? (
-        <div className="relative w-full max-w-xs overflow-hidden rounded-lg border bg-muted">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={preview} alt="Product preview" className="aspect-square w-full object-cover w-20 " />
-          {uploading && (
-            <div className="absolute inset-0 grid place-items-center bg-background/70">
-              <Loader2 className="size-6 animate-spin text-primary" aria-label="Uploading" />
-            </div>
-          )}
-          {!uploading && (
+        <div className="space-y-2">
+          {/* Main preview box with hover effects */}
+          <div className="group relative w-36 h-36 overflow-hidden rounded-xl border border-border bg-muted shadow-sm transition-all hover:border-primary/50">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={preview}
+              alt="Product preview"
+              className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+            />
+
+            {/* Uploading Spinner */}
+            {uploading && (
+              <div className="absolute inset-0 z-20 grid place-items-center bg-background/80 backdrop-blur-sm">
+                <div className="flex flex-col items-center gap-1.5">
+                  <Loader2 className="size-6 animate-spin text-primary" />
+                  <span className="text-[11px] font-medium text-foreground">Uploading...</span>
+                </div>
+              </div>
+            )}
+
+            {/* Desktop Hover Overlay: Change & Remove actions */}
+            {!uploading && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1.5 bg-black/60 p-2 opacity-0 backdrop-blur-[2px] transition-opacity duration-200 group-hover:opacity-100">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="xs"
+                  className="w-full gap-1 text-[11px] font-medium shadow bg-white text-black hover:bg-white/90"
+                  onClick={() => inputRef.current?.click()}
+                >
+                  <Pencil className="size-3" />
+                  Change
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="xs"
+                  className="w-full gap-1 text-[11px] font-medium shadow"
+                  onClick={clear}
+                >
+                  <Trash2 className="size-3" />
+                  Remove
+                </Button>
+              </div>
+            )}
+
+            {/* Top-Right Quick Close button (always accessible) */}
+            {!uploading && (
+              <button
+                type="button"
+                onClick={clear}
+                className="absolute top-1.5 right-1.5 z-10 flex size-6 items-center justify-center rounded-full bg-black/70 text-white shadow-sm transition-all hover:bg-destructive group-hover:opacity-0"
+                aria-label="Remove image"
+                title="Remove image"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Quick-action buttons below image (convenient on mobile and touch devices) */}
+          <div className="flex items-center gap-2">
             <Button
               type="button"
               variant="outline"
-              size="icon-sm"
-              className="absolute top-2 right-2"
-              aria-label="Remove image"
-              onClick={clear}
+              size="xs"
+              className="gap-1 text-xs"
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading}
             >
-              <X />
+              <Pencil className="size-3" />
+              Change image
             </Button>
-          )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              className="gap-1 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={clear}
+              disabled={uploading}
+            >
+              <Trash2 className="size-3" />
+              Remove
+            </Button>
+          </div>
         </div>
       ) : (
         <label
