@@ -87,6 +87,8 @@ model Order {
   city          String        @default("")
   state         String        @default("")
   pincode       String        @default("")
+  // NimbusPost order_id (returned after POST /v2/orders). Null if push failed or UPI order.
+  nimbusOrderId String?
   items         OrderItem[]
   createdAt     DateTime      @default(now())
 }

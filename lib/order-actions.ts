@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCodEstimate, type ShipItem } from "@/lib/shipping";
 import { verifyFirebaseToken } from "@/lib/firebase-token";
 import { getUserFromToken } from "@/lib/imagekit-server";
+import { createNimbusOrder, mergeParcelDimensions } from "@/lib/nimbuspost";
 type Input = {
   token: string;
   payment: "COD" | "UPI";
@@ -68,6 +69,8 @@ export async function placeOrder(input: Input): Promise<Result> {
   let subtotal = 0;
   const ship: ShipItem[] = [];
   const lines: { productId: string; title: string; price: number; qty: number }[] = [];
+  // Also keep a richer version for NimbusPost payload
+  const nimbusItems: { name: string; sku: string; units: number; selling_price: string; weightG: number; lengthCm: number; widthCm: number; heightCm: number }[] = [];
 
   for (const i of wanted) {
     const p = byId.get(i.id);
@@ -76,6 +79,16 @@ export async function placeOrder(input: Input): Promise<Result> {
     subtotal += p.price * i.qty;
     ship.push({ qty: i.qty, weightG: p.weightG, lengthCm: p.lengthCm, widthCm: p.widthCm, heightCm: p.heightCm });
     lines.push({ productId: p.id, title: p.title, price: p.price, qty: i.qty });
+    nimbusItems.push({
+      name: p.title.slice(0, 100),
+      sku: p.id.slice(0, 50),
+      units: i.qty,
+      selling_price: String(p.price),
+      weightG: p.weightG,
+      lengthCm: p.lengthCm,
+      widthCm: p.widthCm,
+      heightCm: p.heightCm,
+    });
   }
 
   // 4. COD charges, recalculated on the server
@@ -93,8 +106,59 @@ export async function placeOrder(input: Input): Promise<Result> {
   }
 
   const total = subtotal + shipping + codCharge;
+  const orderRef = makeRef();
 
-  // 5. Create order and reduce stock together
+  // 5. For COD orders, register with NimbusPost FIRST.
+  //    If NimbusPost returns an error, we BLOCK order placement completely — no DB record, no stock deduction.
+  let nimbusOrderId: string | null = null;
+  if (input.payment === "COD") {
+    const parcel = mergeParcelDimensions(
+      nimbusItems.map((ni) => ({
+        qty: ni.units,
+        weightG: ni.weightG,
+        lengthCm: ni.lengthCm,
+        widthCm: ni.widthCm,
+        heightCm: ni.heightCm,
+      })),
+    );
+
+    const result = await createNimbusOrder({
+      order_number: orderRef,
+      payment_mode: "COD",
+      total_amount: String(total),
+      pickup_location: process.env.NIMBUS_WAREHOUSE_ID,
+      consignee: {
+        name: a.name.trim(),
+        phone: a.phone,
+        address: a.address.trim(),
+        city: a.city.trim(),
+        state: a.state.trim(),
+        pincode: a.pincode,
+      },
+      package_weight: parcel.weightKg,
+      package_length: parcel.lengthCm,
+      package_breadth: parcel.breadthCm,
+      package_height: parcel.heightCm,
+      order_items: nimbusItems.map((ni) => ({
+        name: ni.name,
+        sku: ni.sku,
+        units: ni.units,
+        selling_price: ni.selling_price,
+      })),
+    });
+
+    if (!result.ok) {
+      console.error(`[NimbusPost] Order placement blocked for ${orderRef}:`, result.error);
+      return {
+        ok: false,
+        message: `Courier partner error: ${result.error}. Order was not placed.`,
+      };
+    }
+
+    nimbusOrderId = result.nimbusOrderId;
+  }
+
+  // 6. Only if NimbusPost succeeded (or if UPI), create order and reduce stock in DB
   try {
     const order = await prisma.$transaction(async (tx) => {
       for (const l of lines) {
@@ -107,7 +171,8 @@ export async function placeOrder(input: Input): Promise<Result> {
 
       return tx.order.create({
         data: {
-          ref: makeRef(),
+          ref: orderRef,
+          nimbusOrderId,
           upiTxnId: input.payment === "UPI" ? utr : null,
           userId: user.id,
           paymentMethod: input.payment,
