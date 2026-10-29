@@ -20,6 +20,14 @@ export const metadata: Metadata = {
   title: { default: "Bachatnix | Buy surplus stock by the lot", template: "%s | Bachatnix" },
   description:
     "Garments, footwear, electronics and industrial parts from manufacturers clearing unsold inventory, priced below factory cost.",
+  icons: {
+    icon: [
+      { url: "/favicon.png", type: "image/png" },
+      { url: "/icon.png", type: "image/png" },
+    ],
+    shortcut: "/favicon.png",
+    apple: "/app-icon.png",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
