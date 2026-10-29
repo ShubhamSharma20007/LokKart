@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition, useRef } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AlertCircle, Banknote, Check, ChevronDown, MapPin, Package, Search, ShieldAlert, ShieldCheck, Smartphone, Wallet } from "lucide-react";
@@ -185,17 +185,30 @@ export function CheckoutForm() {
 
   const lookup = usePincodeLookup(form.pincode);
 
-  useEffect(() => {
-    if (lookup.status === "found") {
-      const resolvedState = normalizeState(lookup.state);
-      setForm((f) => ({
-        ...f,
-        city: lookup.district || f.city,
-        state: resolvedState || lookup.state || f.state,
-      }));
-      setErrors((er) => ({ ...er, city: "", state: "" }));
+  const handlePincodeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, "").slice(0, 6);
+    setForm((f) => ({ ...f, pincode: value }));
+    setErrors((er) => ({ ...er, pincode: "" }));
+
+    if (value.length === 6) {
+      try {
+        const res = await fetch(`/api/pincode/${value}`);
+        const json = await res.json();
+        if (json.found) {
+          const resolvedState = normalizeState(json.state);
+          setForm((f) => ({
+            ...f,
+            pincode: value,
+            city: json.district || f.city,
+            state: resolvedState || json.state || f.state,
+          }));
+          setErrors((er) => ({ ...er, city: "", state: "" }));
+        }
+      } catch {
+        // network error fallback: user can enter manually
+      }
     }
-  }, [lookup]);
+  };
 
   const stateOptions = !form.state || STATES.includes(form.state) ? STATES : [form.state, ...STATES];
   const stateItems = stateOptions.map((s) => ({ value: s, label: s }));
@@ -424,7 +437,7 @@ export function CheckoutForm() {
                   <Input
                     id="pincode"
                     value={form.pincode}
-                    onChange={set("pincode")}
+                    onChange={handlePincodeChange}
                     inputMode="numeric"
                     maxLength={6}
                     aria-invalid={!!errors.pincode}
