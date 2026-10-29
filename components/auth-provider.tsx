@@ -73,12 +73,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (err) {
+      console.error("[Firebase Sign-in Error]", err);
       explicitSignIn.current = false;
       const code = (err as { code?: string }).code ?? "";
       if (code === "auth/popup-blocked") {
         toast.error("Your browser blocked the sign-in window. Allow popups and try again.", { id: "auth" });
+      } else if (code === "auth/unauthorized-domain") {
+        toast.error("Firebase Domain Error: Please add this domain to Firebase Console > Authentication > Settings > Authorized Domains.", { id: "auth", duration: 8000 });
+      } else if (code === "auth/operation-not-allowed") {
+        toast.error("Google Sign-In is not enabled in Firebase Console (Authentication > Sign-in method).", { id: "auth", duration: 8000 });
       } else if (!QUIET_ERRORS.has(code)) {
-        toast.error("Google sign-in failed. Please try again.", { id: "auth" });
+        toast.error(`Google sign-in failed (${code || "check console"}). Please try again.`, { id: "auth" });
       }
     } finally {
       setSigningIn(false);
