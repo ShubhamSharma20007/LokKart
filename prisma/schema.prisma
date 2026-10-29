@@ -89,6 +89,11 @@ model Order {
   pincode       String        @default("")
   // NimbusPost order_id (returned after POST /v2/orders). Null if push failed or UPI order.
   nimbusOrderId String?
+  // NimbusPost tracking & shipment details (populated on booking / webhook)
+  awb           String?
+  courierName   String?
+  trackingUrl   String?
+  labelUrl      String?
   items         OrderItem[]
   createdAt     DateTime      @default(now())
 }

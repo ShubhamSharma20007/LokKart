@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from "@/components/auth-provider";
 import { auth } from "@/hooks/useFirebaseAuth";
-import { listAdminOrders, updateOrder, type AdminOrder } from "@/lib/admin-order-actions";
+import { listAdminOrders, updateOrder, dispatchOrderViaNimbus, type AdminOrder } from "@/lib/admin-order-actions";
 import { formatINR } from "@/lib/products";
 import {
   Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue,
@@ -39,6 +39,7 @@ export default function AdminOrdersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [fetching, setFetching] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [dispatchingId, setDispatchingId] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -100,6 +101,25 @@ export default function AdminOrdersPage() {
       toast.error("We could not update the order. Please try again.");
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const handleDispatch = async (o: AdminOrder) => {
+    setDispatchingId(o.id);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error("no token");
+      const res = await dispatchOrderViaNimbus(token, o.id);
+      if (res.ok) {
+        toast.success(`Dispatched ${o.ref}! Courier: ${res.courierName}, AWB: ${res.awb}`);
+        reload();
+      } else {
+        toast.error(res.message);
+      }
+    } catch {
+      toast.error("Failed to dispatch order. Please try again.");
+    } finally {
+      setDispatchingId(null);
     }
   };
 
@@ -176,6 +196,53 @@ export default function AdminOrdersPage() {
                       <TableCell className="pl-4">
                         <p className="font-mono text-sm font-semibold">{o.ref}</p>
                         <p className="text-xs text-muted-foreground">{dateFmt.format(new Date(o.createdAt))}</p>
+                        {o.awb ? (
+                          <div className="mt-1.5 space-y-0.5">
+                            <span className="inline-block rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[11px] font-medium text-primary">
+                              {o.courierName || "Courier"}: {o.awb}
+                            </span>
+                            <div className="flex items-center gap-2 text-xs">
+                              {o.labelUrl && (
+                                <a
+                                  href={o.labelUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="font-medium text-blue-600 underline hover:text-blue-800"
+                                >
+                                  Print Label
+                                </a>
+                              )}
+                              {o.trackingUrl && (
+                                <a
+                                  href={o.trackingUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="font-medium text-blue-600 underline hover:text-blue-800"
+                                >
+                                  Track
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        ) : !locked && (
+                          <div className="mt-1.5">
+                            <Button
+                              size="xs"
+                              variant="outline"
+                              disabled={busy || dispatchingId === o.id}
+                              onClick={() => handleDispatch(o)}
+                              className="h-6 text-[11px]"
+                            >
+                              {dispatchingId === o.id ? (
+                                <>
+                                  <Loader2 className="mr-1 size-3 animate-spin" /> Dispatching...
+                                </>
+                              ) : (
+                                "📦 Book Courier"
+                              )}
+                            </Button>
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         <p className="font-medium">{o.name}</p>

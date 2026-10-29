@@ -4,7 +4,13 @@ import { prisma } from "@/lib/prisma";
 import { getCodEstimate, type ShipItem } from "@/lib/shipping";
 import { verifyFirebaseToken } from "@/lib/firebase-token";
 import { getUserFromToken } from "@/lib/imagekit-server";
-import { createNimbusOrder, mergeParcelDimensions } from "@/lib/nimbuspost";
+import {
+  createNimbusOrder,
+  mergeParcelDimensions,
+  bookNimbusShipment,
+  scheduleNimbusPickup,
+  trackNimbusOrder,
+} from "@/lib/nimbuspost";
 type Input = {
   token: string;
   payment: "COD" | "UPI";
@@ -28,6 +34,11 @@ export type MyOrder = {
   createdAt: string;
   address: { address: string; city: string; state: string; pincode: string };
   items: { id: string; productId: string; title: string; qty: number; price: number }[];
+  nimbusOrderId?: string | null;
+  awb?: string | null;
+  courierName?: string | null;
+  trackingUrl?: string | null;
+  labelUrl?: string | null;
 };
 
 
@@ -193,6 +204,31 @@ export async function placeOrder(input: Input): Promise<Result> {
       });
     });
 
+    // 7. Future Production Flow: If AUTO_DISPATCH is enabled in env, immediately book courier & schedule pickup
+    if (process.env.NIMBUS_AUTO_DISPATCH === "true" && nimbusOrderId) {
+      void (async () => {
+        try {
+          const bookRes = await bookNimbusShipment(nimbusOrderId);
+          if (bookRes.ok) {
+            await scheduleNimbusPickup(nimbusOrderId);
+            await prisma.order.update({
+              where: { id: order.id },
+              data: {
+                status: "CONFIRMED",
+                awb: bookRes.awb,
+                courierName: bookRes.courierName,
+                trackingUrl: bookRes.trackingUrl,
+                labelUrl: bookRes.labelUrl,
+              },
+            });
+            console.log(`[NimbusPost] Auto-dispatched order ${orderRef} with AWB ${bookRes.awb}`);
+          }
+        } catch (e) {
+          console.error(`[NimbusPost] Auto-dispatch failed for ${orderRef}:`, e);
+        }
+      })();
+    }
+
     return { ok: true, orderId: order.id };
   } catch (e) {
     if ((e as { code?: string }).code === "P2002") {
@@ -228,6 +264,11 @@ export async function getMyOrders(idToken: string): Promise<MyOrdersResult> {
         city: true,
         state: true,
         pincode: true,
+        nimbusOrderId: true,
+        awb: true,
+        courierName: true,
+        trackingUrl: true,
+        labelUrl: true,
         items: { select: { id: true, productId: true, title: true, qty: true, price: true } },
       },
     });
@@ -243,5 +284,99 @@ export async function getMyOrders(idToken: string): Promise<MyOrdersResult> {
   } catch (err) {
     console.error("getMyOrders failed", err);
     return { ok: false, message: "We could not load your orders. Please try again." };
+  }
+}
+
+export type OrderTrackingResult =
+  | {
+      ok: true;
+      notBooked?: boolean;
+      status: string;
+      message?: string;
+      awb?: string | null;
+      courierName?: string | null;
+      trackingUrl?: string | null;
+      data?: {
+        orderId: string;
+        orderNumber: string;
+        orderStatus: string;
+        awb?: string;
+        courierName?: string;
+        trackingUrl?: string;
+        scans: { timestamp: string; status: string; location: string; remark?: string }[];
+        latest?: {
+          shipStatus?: string;
+          statusCode?: string;
+          location?: string;
+          message?: string;
+          eventTime?: string;
+        };
+      };
+    }
+  | { ok: false; message: string };
+
+/**
+ * On-demand tracking for buyer orders.
+ * Fetches real-time timeline checkpoints from NimbusPost.
+ */
+export async function getOrderTracking(
+  idToken: string,
+  orderId: string,
+): Promise<OrderTrackingResult> {
+  try {
+    const user = await getUserFromToken(idToken);
+    if (!user) return { ok: false, message: "Please sign in to track your order." };
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        userId: true,
+        ref: true,
+        status: true,
+        nimbusOrderId: true,
+        awb: true,
+        courierName: true,
+        trackingUrl: true,
+      },
+    });
+
+    if (!order || order.userId !== user.id) {
+      return { ok: false, message: "Order not found." };
+    }
+
+    if (!order.nimbusOrderId) {
+      return {
+        ok: true,
+        notBooked: true,
+        status: order.status,
+        message: "Order placed. Awaiting dispatch.",
+      };
+    }
+
+    const tracking = await trackNimbusOrder(order.nimbusOrderId);
+    if (tracking.ok) {
+      return {
+        ok: true,
+        status: order.status,
+        awb: tracking.data.awb || order.awb,
+        courierName: tracking.data.courierName || order.courierName,
+        trackingUrl: tracking.data.trackingUrl || order.trackingUrl,
+        data: tracking.data,
+      };
+    }
+
+    return {
+      ok: true,
+      notBooked: tracking.notBooked ?? true,
+      status: order.status,
+      message: tracking.error || "Order confirmed. Courier assignment in progress.",
+      awb: order.awb,
+      courierName: order.courierName,
+      trackingUrl: order.trackingUrl,
+    };
+  } catch (err) {
+    console.error("getOrderTracking failed", err);
+    return { ok: false, message: "Failed to fetch tracking details." };
   }
 }

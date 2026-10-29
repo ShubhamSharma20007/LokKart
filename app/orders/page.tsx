@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, MapPin, Package } from "lucide-react";
+import { Loader2, MapPin, Package, Truck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import { getMyOrders, type MyOrder } from "@/lib/order-actions";
 import { formatINR } from "@/lib/products";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { OrderTrackingModal } from "@/components/order-tracking-modal";
 
 const statusLabel: Record<MyOrder["status"], string> = {
   PLACED: "Order placed",
@@ -44,6 +45,7 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<MyOrder[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [trackingOrder, setTrackingOrder] = useState<MyOrder | null>(null);
 
   const retry = () => {
     setOrders(null);
@@ -171,6 +173,19 @@ export default function OrdersPage() {
                         </p>
                       )}
                     </div>
+                    <div className="flex flex-col items-start gap-2">
+                      {o.awb && (
+                        <div className="text-xs text-muted-foreground font-mono">
+                          <Truck className="inline size-3 mr-1" aria-hidden />
+                          AWB: {o.awb} &middot; {o.courierName}
+                        </div>
+                      )}
+                      {o.status !== "PLACED" && o.status !== "CANCELLED" && (
+                        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setTrackingOrder(o)}>
+                          <Truck className="size-3 mr-1" aria-hidden /> Track Order
+                        </Button>
+                      )}
+                    </div>
                     <div className="text-right">
                       <p className="text-sm text-muted-foreground">Total</p>
                       <p className="font-heading text-2xl font-bold">{formatINR(o.total)}</p>
@@ -181,6 +196,13 @@ export default function OrdersPage() {
             </li>
           ))}
         </ul>
+      )}
+      {trackingOrder && (
+        <OrderTrackingModal
+          open={!!trackingOrder}
+          onOpenChange={(open) => { if (!open) setTrackingOrder(null); }}
+          order={trackingOrder}
+        />
       )}
     </main>
   );

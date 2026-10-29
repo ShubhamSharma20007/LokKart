@@ -1,15 +1,24 @@
+import crypto from "node:crypto";
+import type { OrderStatus } from "@/app/generated/prisma/client";
+
 /**
- * NimbusPost v2 API Integration — Order creation only.
+ * NimbusPost v2 API Integration.
  *
- * Strategy:
- *   POST /v2/orders   → Registers the order in NimbusPost WITHOUT booking a courier.
- *                       No one comes to your door to pick up anything.
- *                       You (admin) can later book / dispatch from NimbusPost dashboard.
+ * Architecture:
+ *   1. Development / Default Checkout:
+ *      POST /v2/orders   → Registers the order in NimbusPost WITHOUT booking a courier.
+ *                          No delivery boy comes to your house. 100% safe.
  *
- * Why NOT POST /v2/shipments?
- *   /v2/shipments creates an order AND immediately books a courier,
- *   which would trigger a pickup request to come to your warehouse.
- *   We don't want that — courier booking is done manually by admin after verifying the order.
+ *   2. Production Dispatch / Booking:
+ *      POST /v2/shipments/book   → Books courier (auto top-ranked or courier_id), generates AWB & label.
+ *      POST /v2/shipments/pickup → Asks courier partner to come pick up parcel from warehouse.
+ *
+ *   3. Webhook Synchronization:
+ *      NimbusPost sends order.updated and tracking.updated to /api/webhooks/nimbus.
+ *      DB status updates automatically to PLACED, CONFIRMED, SHIPPED, DELIVERED.
+ *
+ *   4. Customer Tracking:
+ *      GET /v2/tracking/order/{orderId} → Live scan history & tracking page links.
  */
 
 const NIMBUS_ORDERS_URL = "https://api-v2.nimbuspost.com/v2/orders";
@@ -204,5 +213,336 @@ export function mergeParcelDimensions(
     breadthCm: Math.max(1, maxBreadth),
     heightCm: Math.max(1, totalHeight),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Courier Booking & Dispatch (POST /v2/shipments/book & POST /v2/shipments/pickup)
+// ---------------------------------------------------------------------------
+
+export type NimbusBookResult =
+  | {
+      ok: true;
+      awb: string;
+      courierName: string;
+      trackingUrl?: string;
+      labelUrl?: string;
+    }
+  | { ok: false; error: string };
+
+/**
+ * Books courier for an existing NimbusPost order.
+ * If courierId is omitted, NimbusPost auto-allocates the top-ranked serviceable courier.
+ */
+export async function bookNimbusShipment(
+  nimbusOrderId: string,
+  courierId?: string,
+): Promise<NimbusBookResult> {
+  const apiKey = process.env.NIMBUS_API_KEY;
+  const apiSecret = process.env.NIMBUS_API_SECRET;
+  if (!apiKey || !apiSecret) {
+    return { ok: false, error: "Missing NimbusPost credentials" };
+  }
+
+  const payload: Record<string, unknown> = {
+    order_id: nimbusOrderId,
+  };
+  if (courierId) payload.courier_id = courierId;
+
+  try {
+    const res = await fetch("https://api-v2.nimbuspost.com/v2/shipments/book", {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "x-api-secret": apiSecret,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+    });
+
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json?.success) {
+      const errMsg =
+        json?.error?.detail ??
+        json?.message ??
+        (typeof json?.error === "string" ? json.error : JSON.stringify(json?.error)) ??
+        `HTTP ${res.status}`;
+      return { ok: false, error: String(errMsg) };
+    }
+
+    return {
+      ok: true,
+      awb: String(json.data?.awb ?? ""),
+      courierName: String(json.data?.courier_name ?? "Courier Partner"),
+      trackingUrl: json.data?.tracking_url || json.data?.tracking_short_url || "",
+      labelUrl: json.data?.label_url || "",
+    };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/**
+ * Asks courier to pick up the shipment from the warehouse / address.
+ * pickupDate defaults to the next working day if omitted (YYYY-MM-DD format).
+ */
+export async function scheduleNimbusPickup(
+  nimbusOrderId: string,
+  pickupDate?: string,
+): Promise<{ ok: true; scheduled: boolean; message?: string } | { ok: false; error: string }> {
+  const apiKey = process.env.NIMBUS_API_KEY;
+  const apiSecret = process.env.NIMBUS_API_SECRET;
+  if (!apiKey || !apiSecret) {
+    return { ok: false, error: "Missing NimbusPost credentials" };
+  }
+
+  const payload: Record<string, unknown> = {
+    order_id: nimbusOrderId,
+  };
+  if (pickupDate) payload.pickup_date = pickupDate;
+
+  try {
+    const res = await fetch("https://api-v2.nimbuspost.com/v2/shipments/pickup", {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "x-api-secret": apiSecret,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+    });
+
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json?.success) {
+      const errMsg =
+        json?.error?.detail ??
+        json?.message ??
+        (typeof json?.error === "string" ? json.error : JSON.stringify(json?.error)) ??
+        `HTTP ${res.status}`;
+      return { ok: false, error: String(errMsg) };
+    }
+
+    return {
+      ok: true,
+      scheduled: json.data?.courier_scheduled !== false,
+      message: json.data?.message || "Pickup scheduled successfully",
+    };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/**
+ * Generates and fetches printable PDF shipping label for a booked order.
+ */
+export async function getNimbusShippingLabels(
+  nimbusOrderId: string,
+): Promise<{ ok: true; labelUrl: string } | { ok: false; error: string }> {
+  const apiKey = process.env.NIMBUS_API_KEY;
+  const apiSecret = process.env.NIMBUS_API_SECRET;
+  if (!apiKey || !apiSecret) {
+    return { ok: false, error: "Missing NimbusPost credentials" };
+  }
+
+  try {
+    const res = await fetch("https://api-v2.nimbuspost.com/v2/shipments/labels", {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "x-api-secret": apiSecret,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ order_id: nimbusOrderId }),
+      cache: "no-store",
+    });
+
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json?.success) {
+      const errMsg =
+        json?.error?.detail ??
+        json?.message ??
+        (typeof json?.error === "string" ? json.error : JSON.stringify(json?.error)) ??
+        `HTTP ${res.status}`;
+      return { ok: false, error: String(errMsg) };
+    }
+
+    return {
+      ok: true,
+      labelUrl: String(json.data?.url ?? ""),
+    };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Real-time Tracking (GET /v2/tracking/order/{orderId})
+// ---------------------------------------------------------------------------
+
+export type NimbusTrackingScan = {
+  timestamp: string;
+  status: string;
+  location: string;
+  remark?: string;
+};
+
+export type NimbusTrackingData = {
+  orderId: string;
+  orderNumber: string;
+  orderStatus: string;
+  awb?: string;
+  courierName?: string;
+  trackingUrl?: string;
+  scans: NimbusTrackingScan[];
+  latest?: {
+    shipStatus?: string;
+    statusCode?: string;
+    location?: string;
+    message?: string;
+    eventTime?: string;
+  };
+};
+
+export async function trackNimbusOrder(
+  nimbusOrderId: string,
+): Promise<
+  | { ok: true; data: NimbusTrackingData }
+  | { ok: false; notBooked?: boolean; error: string }
+> {
+  const apiKey = process.env.NIMBUS_API_KEY;
+  const apiSecret = process.env.NIMBUS_API_SECRET;
+  if (!apiKey || !apiSecret) {
+    return { ok: false, error: "Missing NimbusPost credentials" };
+  }
+
+  try {
+    const res = await fetch(
+      `https://api-v2.nimbuspost.com/v2/tracking/order/${encodeURIComponent(nimbusOrderId)}`,
+      {
+        method: "GET",
+        headers: {
+          "x-api-key": apiKey,
+          "x-api-secret": apiSecret,
+          Accept: "application/json",
+        },
+        cache: "no-store",
+      },
+    );
+
+    const json = await res.json().catch(() => null);
+
+    // When order is created in NimbusPost but not yet booked to a courier:
+    if (res.status === 404 && json?.error?.details?.code === "NO_SHIPMENT") {
+      return {
+        ok: false,
+        notBooked: true,
+        error: "Order confirmed. Courier assignment in progress.",
+      };
+    }
+
+    if (!res.ok || !json?.success) {
+      const errMsg =
+        json?.error?.detail ??
+        json?.message ??
+        (typeof json?.error === "string" ? json.error : JSON.stringify(json?.error)) ??
+        `HTTP ${res.status}`;
+      return { ok: false, error: String(errMsg) };
+    }
+
+    const d = json.data;
+    const scansList = Array.isArray(d?.scans) ? d.scans : [];
+
+    return {
+      ok: true,
+      data: {
+        orderId: String(d?.orderId ?? nimbusOrderId),
+        orderNumber: String(d?.orderNumber ?? ""),
+        orderStatus: String(d?.orderStatus ?? ""),
+        awb: d?.awb ? String(d.awb) : undefined,
+        courierName: d?.courierName ? String(d.courierName) : undefined,
+        trackingUrl: d?.tracking_url || d?.tracking_short_url || "",
+        scans: scansList.map((s: Record<string, unknown>) => ({
+          timestamp: String(s.timestamp || s.date || ""),
+          status: String(s.status || ""),
+          location: String(s.location || ""),
+          remark: String(s.remark || s.message || ""),
+        })),
+        latest: d?.latest
+          ? {
+              shipStatus: String(d.latest.shipStatus || ""),
+              statusCode: String(d.latest.statusCode || ""),
+              location: String(d.latest.location || ""),
+              message: String(d.latest.message || ""),
+              eventTime: String(d.latest.eventTime || ""),
+            }
+          : undefined,
+      },
+    };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Webhook Signature Verification & Status Mapping
+// ---------------------------------------------------------------------------
+
+/**
+ * Validates HMAC-SHA256 signature from NimbusPost webhook delivery.
+ * Constant-time comparison to prevent timing attacks.
+ */
+export function verifyNimbusWebhookSignature(
+  rawBody: string,
+  signatureHeader: string | null,
+  secret?: string,
+): boolean {
+  const webhookSecret = secret || process.env.NIMBUS_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    console.warn("[NimbusPost] NIMBUS_WEBHOOK_SECRET not set; rejecting or allowing dev only");
+    return process.env.NODE_ENV !== "production";
+  }
+  if (!signatureHeader) return false;
+
+  const expected = "sha256=" + crypto.createHmac("sha256", webhookSecret).update(rawBody).digest("hex");
+  try {
+    return (
+      signatureHeader.length === expected.length &&
+      crypto.timingSafeEqual(Buffer.from(signatureHeader), Buffer.from(expected))
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Maps NimbusPost lifecycle statuses to Bachatnix Prisma OrderStatus enum.
+ */
+export function mapNimbusStatusToOrderStatus(nimbusStatus: string): OrderStatus | null {
+  const s = nimbusStatus.toLowerCase().trim();
+  switch (s) {
+    case "created":
+      return "PLACED";
+    case "booked":
+    case "pickup_scheduled":
+    case "pickup_rescheduled":
+    case "pickup_pending":
+    case "out_for_pickup":
+      return "CONFIRMED";
+    case "pickup_completed":
+    case "in_transit":
+    case "reached_at_destination":
+    case "out_for_delivery":
+      return "SHIPPED";
+    case "delivered":
+      return "DELIVERED";
+    case "cancelled":
+    case "rto_delivered":
+    case "lost":
+    case "damaged":
+      return "CANCELLED";
+    default:
+      return null;
+  }
 }
 

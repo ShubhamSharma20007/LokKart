@@ -103,7 +103,8 @@ export function ProductForm({
     }
   };
 
-  const handleCategoryChange = (val: string) => {
+  const handleCategoryChange = (val: string | null) => {
+    if (!val) return;
     setCategory(val);
     if (!editing) {
       if (val === "Garments") {
