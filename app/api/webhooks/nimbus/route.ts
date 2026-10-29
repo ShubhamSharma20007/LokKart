@@ -1,3 +1,4 @@
+import { sendOrderShippedNotification, sendOrderDeliveredNotification } from "@/lib/mailer";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
@@ -5,7 +6,6 @@ import {
   mapNimbusStatusToOrderStatus,
 } from "@/lib/nimbuspost";
 
-export const dynamic = "force-dynamic";
 
 /**
  * NimbusPost Outbound Webhook Handler.
@@ -112,7 +112,16 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    console.log(`[NimbusWebhook] Order ${order.ref} updated: status=${newStatus}, awb=${awb || order.awb}`);
+    console.log(
+      `[NimbusWebhook] Order ${order.ref} updated: status=${newStatus}, awb=${awb || order.awb}`,
+    );
+
+    // Trigger emails on status transitions
+    if (newStatus === "SHIPPED" && order.status !== "SHIPPED") {
+      void sendOrderShippedNotification(order.id);
+    } else if (newStatus === "DELIVERED" && order.status !== "DELIVERED") {
+      void sendOrderDeliveredNotification(order.id);
+    }
 
     // Return 200 within 60s as required by NimbusPost
     return NextResponse.json({ success: true, deliveryId });

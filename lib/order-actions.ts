@@ -11,6 +11,7 @@ import {
   scheduleNimbusPickup,
   trackNimbusOrder,
 } from "@/lib/nimbuspost";
+import { sendOrderPlacedNotification } from "@/lib/mailer";
 type Input = {
   token: string;
   payment: "COD" | "UPI";
@@ -47,17 +48,58 @@ export type MyOrdersResult =
   | { ok: false; message: string };
 
 
+/**
+ * placeOrder — COD ONLY.
+ * UPI payments are now handled by Cashfree via /api/cashfree/create-order route.
+ * The manual UTR flow has been removed.
+ */
 export async function placeOrder(input: Input): Promise<Result> {
-  const utr = (input.utr ?? "").trim();
-  if (input.payment === "UPI" && !/^\d{12}$/.test(utr)) {
-    return { ok: false, message: "Enter the 12-digit UTR.", errors: { utr: "Enter the 12-digit UTR from your UPI app" } };
+  // Guard: this action only handles COD now
+  if (input.payment === "UPI") {
+    return { ok: false, message: "UPI payments are handled via Cashfree. Please use the checkout page." };
   }
   // 1. Who is ordering
   const decoded = await verifyFirebaseToken(input.token).catch(() => null);
-  if (!decoded || !decoded.email) return { ok: false, message: "Please sign in again." };
+  if (!decoded || !decoded.email) return { ok: false, message: "Please sign in with Google to place your order." };
 
   const user = await prisma.user.findUnique({ where: { email: decoded.email } });
-  if (!user) return { ok: false, message: "Account not found." };
+  if (!user) return { ok: false, message: "Account not found. Please sign in again." };
+
+  // 1b. COD Anti-Spam & Fraud Protection:
+  // - Cooldown: Prevent automated rapid-fire COD orders (60 seconds between orders)
+  // - Limit: Max 3 active unfulfilled COD orders per user or phone number
+  const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
+  const recentCodOrder = await prisma.order.findFirst({
+    where: {
+      userId: user.id,
+      paymentMethod: "COD",
+      createdAt: { gte: oneMinuteAgo },
+    },
+    select: { id: true },
+  });
+  if (recentCodOrder) {
+    return {
+      ok: false,
+      message: "Please wait a minute before placing another Cash on Delivery order.",
+    };
+  }
+
+  const activeCodOrdersCount = await prisma.order.count({
+    where: {
+      OR: [{ userId: user.id }, { phone: input.address.phone }],
+      paymentMethod: "COD",
+      status: { in: ["PLACED", "CONFIRMED"] },
+      paymentStatus: "PENDING",
+    },
+  });
+
+  if (activeCodOrdersCount >= 3) {
+    return {
+      ok: false,
+      message:
+        "You already have 3 active Cash on Delivery orders in progress. Please use UPI to place more orders or wait for your current orders to be delivered.",
+    };
+  }
 
   // 2. Validate address
   const a = input.address;
@@ -184,7 +226,7 @@ export async function placeOrder(input: Input): Promise<Result> {
         data: {
           ref: orderRef,
           nimbusOrderId,
-          upiTxnId: input.payment === "UPI" ? utr : null,
+          upiTxnId: null, // UPI txnId is now set by Cashfree webhook/order-status route
           userId: user.id,
           paymentMethod: input.payment,
           status: "PLACED",
@@ -203,6 +245,9 @@ export async function placeOrder(input: Input): Promise<Result> {
         select: { id: true },
       });
     });
+
+    // Send order confirmation email asynchronously
+    void sendOrderPlacedNotification(order.id);
 
     // 7. Future Production Flow: If AUTO_DISPATCH is enabled in env, immediately book courier & schedule pickup
     if (process.env.NIMBUS_AUTO_DISPATCH === "true" && nimbusOrderId) {
@@ -232,7 +277,7 @@ export async function placeOrder(input: Input): Promise<Result> {
     return { ok: true, orderId: order.id };
   } catch (e) {
     if ((e as { code?: string }).code === "P2002") {
-      return { ok: false, message: "This UTR was already used.", errors: { utr: "This UTR was already used for another order" } };
+      return { ok: false, message: "Duplicate order detected. Please try again." };
     }
     if (e instanceof Error && e.message.startsWith("STOCK:")) {
       return { ok: false, message: `"${e.message.slice(6)}" just went out of stock.` };

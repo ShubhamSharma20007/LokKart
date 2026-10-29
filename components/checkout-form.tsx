@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { AlertCircle, Banknote, Check, ChevronDown, MapPin, Package, Search, Smartphone, Wallet } from "lucide-react";
+import { AlertCircle, Banknote, Check, ChevronDown, MapPin, Package, Search, ShieldAlert, ShieldCheck, Smartphone, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,20 +22,14 @@ import {
 } from "@/components/ui/select";
 import { CheckoutSkeleton, EmptyCart } from "@/components/cart-states";
 import { Spinner } from "@/components/ui/spinner";
+import { useAuth } from "@/components/auth-provider";
 import { auth } from "@/hooks/useFirebaseAuth";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
-import { clearCart } from "@/lib/store/slices/cartSlice";
-import { useCodEstimate } from "@/lib/use-cod-estimate";
+import { clearCart } from "@/lib/store/slices/cartSlice";import { useCodEstimate } from "@/lib/use-cod-estimate";
 import { placeOrder } from "@/lib/order-actions";
-import { formatINR } from "@/lib/products";
-import { useMounted } from "@/lib/use-mounted";
+import { formatINR } from "@/lib/products";import { useMounted } from "@/lib/use-mounted";
 import { usePincodeLookup } from "@/lib/use-pincode-lookup";
 import { cn } from "@/lib/utils";
-import { QRCodeSVG } from "qrcode.react";
-
-
-const UPI_ID = process.env.NEXT_PUBLIC_UPI_ID;
-const UPI_NAME = process.env.NEXT_PUBLIC_UPI_NAME ?? "Bachatnix";
 
 
 
@@ -162,9 +156,10 @@ export function CheckoutForm() {
   const mounted = useMounted();
   const items = useAppSelector((s) => s.cart.items);
   const hydrated = useAppSelector((s) => s.cart.hydrated);
-  const [utr, setUtr] = useState("");
+  const [upiLoading, setUpiLoading] = useState(false);
 
  
+  const { user, signingIn, signIn } = useAuth();
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -173,7 +168,7 @@ export function CheckoutForm() {
     state: "",
     pincode: "",
   });
-  const [payment, setPayment] = useState<Payment>("COD");
+  const [payment, setPayment] = useState<Payment>("UPI");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | undefined>();
   const [pending, startTransition] = useTransition();
@@ -220,13 +215,13 @@ export function CheckoutForm() {
     if (form.city.trim().length < 2) e.city = "Enter your city";
     if (form.state.trim().length < 2) e.state = "Select your state";
     if (!/^[1-9]\d{5}$/.test(form.pincode)) e.pincode = "Enter a valid 6-digit pincode";
-    if (payment === "UPI" && !/^\d{12}$/.test(utr)) e.utr = "Enter the 12-digit UTR from your UPI app";
+    // Note: UPI validation removed — Cashfree handles payment
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
 
-  const submit = (e: React.FormEvent) => {
+  const handleCODSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(undefined);
     if (!validate()) return;
@@ -238,13 +233,12 @@ export function CheckoutForm() {
         return;
       }
 
-     const res = await placeOrder({
+      const res = await placeOrder({
         token,
-        payment,
-        utr: payment === "UPI" ? utr : undefined,
+        payment: "COD",
         address: form,
         items: items.map((i) => ({ id: i.id, qty: i.qty })),
-    });
+      });
 
       if (!res.ok) {
         setFormError(res.message);
@@ -253,20 +247,92 @@ export function CheckoutForm() {
       }
 
       dispatch(clearCart());
-      toast.success("Order placed");
+      toast.success("Order placed!");
       router.push(`/orders?placed=${res.orderId}`);
     });
   };
 
-   const upiLink = UPI_ID
-  ? `upi://pay?pa=${encodeURIComponent(UPI_ID)}&pn=${encodeURIComponent(UPI_NAME)}&am=${subtotal.toFixed(2)}&cu=INR&tn=${encodeURIComponent("Bachatnix order")}`
-  : "";
+  const handleUPISubmit = async () => {
+    setFormError(undefined);
+    // Validate address only (no UTR needed)
+    const e: Record<string, string> = {};
+    if (form.name.trim().length < 2) e.name = "Enter your full name";
+    if (!/^[6-9]\d{9}$/.test(form.phone)) e.phone = "Enter a valid 10-digit mobile number";
+    if (form.address.trim().length < 10) e.address = "Enter your full address";
+    if (form.city.trim().length < 2) e.city = "Enter your city";
+    if (form.state.trim().length < 2) e.state = "Select your state";
+    if (!/^[1-9]\d{5}$/.test(form.pincode)) e.pincode = "Enter a valid 6-digit pincode";
+    setErrors(e);
+    if (Object.keys(e).length > 0) return;
 
-  
+    const token = await auth.currentUser?.getIdToken();
+    if (!token) {
+      setFormError("Please sign in to place your order.");
+      return;
+    }
 
-  
+    setUpiLoading(true);
+    try {
+      // 1. Create order on server + get Cashfree session
+      const res = await fetch("/api/cashfree/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token,
+          address: form,
+          items: items.map((i) => ({ id: i.id, qty: i.qty })),
+        }),
+      });
 
-  if (!mounted || !hydrated) return <CheckoutSkeleton />;
+      const data = (await res.json()) as {
+        ok: boolean;
+        message?: string;
+        paymentSessionId?: string;
+        orderRef?: string;
+      };
+
+      if (!data.ok || !data.paymentSessionId || !data.orderRef) {
+        setFormError(data.message ?? "Could not initiate payment. Please try again.");
+        return;
+      }
+
+      // 2. Load Cashfree SDK dynamically and open checkout
+      const { load } = await import("@cashfreepayments/cashfree-js");
+      const cashfree = await load({
+        mode: process.env.NODE_ENV === "production" ? "production" : "sandbox",
+      });
+
+      const result = await cashfree.checkout({
+        paymentSessionId: data.paymentSessionId,
+        returnUrl: `${window.location.origin}/orders/payment-result?orderId=${data.orderRef}`,
+        redirectTarget: "_modal",
+      });
+
+      if (result?.error) {
+        console.warn("[Cashfree Checkout Modal] User cancelled or error:", result.error);
+        toast.error("Payment was cancelled or failed. You can try again.");
+      } else {
+        dispatch(clearCart());
+        router.push(`/orders/payment-result?orderId=${data.orderRef}`);
+      }
+    } catch (err) {
+      console.error("[Cashfree Checkout]", err);
+      setFormError("Payment failed to open. Please try again.");
+    } finally {
+      setUpiLoading(false);
+    }
+  };
+
+  const submit = (e: React.FormEvent) => {
+    if (payment === "COD") {
+      handleCODSubmit(e);
+    } else {
+      e.preventDefault();
+      void handleUPISubmit();
+    }
+  };
+
+    if (!mounted || !hydrated) return <CheckoutSkeleton />;
   if (items.length === 0) return <EmptyCart />;
 
   return (
@@ -481,6 +547,30 @@ export function CheckoutForm() {
               className="grid gap-3 sm:grid-cols-2"
             >
               <Label
+                htmlFor="payment-upi"
+                className={cn(
+                  "relative flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-all select-none",
+                  payment === "UPI"
+                    ? "border-primary bg-primary/5 ring-1 ring-primary"
+                    : "border-input hover:bg-muted/50",
+                )}
+              >
+                <RadioGroupItem value="UPI" id="payment-upi" className="mt-0.5" />
+                <div className="flex-1 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="size-4 text-primary" />
+                    <span className="font-semibold text-sm">UPI</span>
+                    <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                      ₹0 COD Fee
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground font-normal leading-relaxed">
+                    Pay instantly via GPay / PhonePe / Paytm. Zero COD fee.
+                  </p>
+                </div>
+              </Label>
+
+              <Label
                 htmlFor="payment-cod"
                 className={cn(
                   "relative flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-all select-none",
@@ -500,30 +590,6 @@ export function CheckoutForm() {
                   </div>
                   <p className="text-xs text-muted-foreground font-normal leading-relaxed">
                     Free shipping on all orders. Nominal COD handling fee applies.
-                  </p>
-                </div>
-              </Label>
-
-              <Label
-                htmlFor="payment-upi"
-                className={cn(
-                  "relative flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-all select-none",
-                  payment === "UPI"
-                    ? "border-primary bg-primary/5 ring-1 ring-primary"
-                    : "border-input hover:bg-muted/50",
-                )}
-              >
-                <RadioGroupItem value="UPI" id="payment-upi" className="mt-0.5" />
-                <div className="flex-1 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Smartphone className="size-4 text-primary" />
-                    <span className="font-semibold text-sm">UPI</span>
-                    <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-                      Free Shipping
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground font-normal leading-relaxed">
-                    Pay instantly via GPay / PhonePe / Paytm. Zero COD fee.
                   </p>
                 </div>
               </Label>
@@ -600,61 +666,29 @@ export function CheckoutForm() {
                 </div>
               )}
              {payment === "UPI" && (
-  <div className="mt-4 space-y-4 rounded-xl border bg-muted/30 p-4">
-    {upiLink ? (
-      <>
-        <div className="flex flex-col items-center gap-2 text-center">
-          <div className="rounded-xl bg-white p-3">
-            <QRCodeSVG value={upiLink} size={180} level="M" />
-          </div>
-          <p className="text-sm">
-            Scan with GPay, PhonePe or Paytm and pay{" "}
-            <strong>{formatINR(subtotal)}</strong>
-          </p>
-          <p className="text-xs text-muted-foreground">
-            UPI ID: <span className="font-mono">{UPI_ID}</span>
-          </p>
-          <a href={upiLink} className="text-xs font-medium text-primary underline underline-offset-4 md:hidden">
-            Open UPI app
-          </a>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="utr" className="text-xs font-medium">
-            Transaction ID (UTR), 12 digits
-          </Label>
-          <Input
-            id="utr"
-            value={utr}
-            onChange={(e) => {
-              setUtr(e.target.value.replace(/\D/g, "").slice(0, 12));
-              setErrors((er) => ({ ...er, utr: "" }));
-            }}
-            inputMode="numeric"
-            maxLength={12}
-            placeholder="e.g. 412345678901"
-            aria-invalid={!!errors.utr}
-            className={cn(inputClass, "font-mono tracking-wider")}
-          />
-          {errors.utr ? (
-            <p className="text-xs text-destructive">{errors.utr}</p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              Find it in your UPI app under payment details, after paying.
-            </p>
-          )}
-        </div>
-      </>
-    ) : (
-      <Alert variant="destructive" className="py-2.5">
-        <AlertCircle className="size-4" />
-        <AlertDescription className="text-xs">
-          UPI is not set up yet. Add NEXT_PUBLIC_UPI_ID to your .env file.
-        </AlertDescription>
-      </Alert>
-    )}
-  </div>
-)}
+                <div className="space-y-2">
+                  <p className="flex justify-between">
+                    <span>Shipping</span>
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">FREE</span>
+                  </p>
+                  <p className="flex justify-between">
+                    <span>COD fee</span>
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">₹0</span>
+                  </p>
+                  <div className="mt-4 rounded-xl border bg-muted/30 p-4">
+                    <div className="flex flex-col items-center gap-2 text-center">
+                      <div className="grid size-10 place-items-center rounded-full bg-primary/10">
+                        <ShieldCheck className="size-5 text-primary" />
+                      </div>
+                      <p className="text-sm font-medium">Secured by Cashfree Payments</p>
+                      <p className="text-xs text-muted-foreground">
+                        Pay via GPay, PhonePe, Paytm, UPI or any UPI-enabled app.
+                        Amount: <strong>{formatINR(subtotal)}</strong>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <Separator />
@@ -664,10 +698,45 @@ export function CheckoutForm() {
               <span className="font-heading text-2xl">{formatINR(grandTotal)}</span>
             </p>
 
-            <Button type="submit" size="lg" className="h-10 w-full" disabled={pending || codBlocked}>
-              {pending && <Spinner />}
-              {pending ? "Placing order..." : payment === "COD" ? "Place order (Cash on Delivery)" : "Place order"}
-            </Button>
+            {!user ? (
+              <div className="space-y-3 pt-2">
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2.5">
+                  <ShieldAlert className="size-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                  <div>
+                    <p className="font-semibold">Sign in required to place order</p>
+                    <p className="text-muted-foreground text-[11px] mt-0.5">
+                      Please sign in with Google to prevent fake orders and track your delivery.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  size="lg"
+                  className="h-10 w-full gap-2"
+                  onClick={() => void signIn()}
+                  disabled={signingIn}
+                >
+                  {signingIn && <Spinner />}
+                  {signingIn ? "Signing in..." : "Sign in with Google to Order"}
+                </Button>
+              </div>
+            ) : payment === "COD" ? (
+              <Button type="submit" size="lg" className="h-10 w-full" disabled={pending || codBlocked}>
+                {pending && <Spinner />}
+                {pending ? "Placing order..." : "Place order (Cash on Delivery)"}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                size="lg"
+                className="h-10 w-full"
+                disabled={upiLoading}
+                onClick={() => void handleUPISubmit()}
+              >
+                {upiLoading && <Spinner />}
+                {upiLoading ? "Opening payment..." : `Pay ${formatINR(subtotal)} securely`}
+              </Button>
+            )}
           </CardContent>
         </Card>
       </aside>

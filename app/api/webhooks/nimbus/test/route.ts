@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import {
+  sendOrderPlacedNotification,
+  sendOrderShippedNotification,
+  sendOrderDeliveredNotification,
+} from "@/lib/mailer";
 
 /**
  * DEV-ONLY: Simulate NimbusPost webhook events locally.
@@ -102,6 +107,15 @@ export async function POST(req: NextRequest) {
   console.log(
     `[NimbusWebhook][DEV] Simulated event="${event}" for order ${order.ref} → status=${newStatus}, awb=${fakeAwb}`,
   );
+
+  // Trigger test emails
+  if (newStatus === "CONFIRMED" || newStatus === "PLACED") {
+    void sendOrderPlacedNotification(order.id);
+  } else if (newStatus === "SHIPPED") {
+    void sendOrderShippedNotification(order.id);
+  } else if (newStatus === "DELIVERED") {
+    void sendOrderDeliveredNotification(order.id);
+  }
 
   return NextResponse.json({
     success: true,

@@ -76,7 +76,8 @@ model Order {
   paymentMethod PaymentMethod
   paymentStatus PaymentStatus @default(PENDING)
   status        OrderStatus   @default(PLACED)
-  upiTxnId      String?       @unique
+  upiTxnId        String?       // Legacy UTR field — no longer unique (Cashfree replaced manual UTR flow)
+  cashfreeOrderId String?       // Cashfree's cf_order_id
   subtotal      Int           @default(0)
   shipping      Int           @default(0)
   codCharge     Int           @default(0)

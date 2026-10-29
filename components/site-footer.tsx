@@ -8,7 +8,7 @@ export function SiteFooter() {
     <footer className="mt-16 bg-brand text-brand-foreground">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:grid-cols-3">
         <div className="space-y-3">
-          <p className="font-heading text-xl font-extrabold tracking-tight">Bachatnix</p>
+          <p className="font-heading text-xl font-extrabold tracking-tight">Bachat<span className="text-signal">nix</span></p>
           <p className="max-w-xs text-sm text-brand-foreground/70">
             Good products at prices that save you money. MRP and price shown on every item.
           </p>
@@ -32,7 +32,7 @@ export function SiteFooter() {
         </div>
       </div>
       <div className="border-t border-white/10">
-        <p className="mx-auto max-w-6xl px-4 py-5 text-xs text-brand-foreground/60">© 2026 Bachatnix</p>
+        <p className="mx-auto max-w-6xl px-4 py-5 text-xs text-brand-foreground/60">© 2026 Bachat<span className="text-signal">nix</span></p>
       </div>
     </footer>
   );

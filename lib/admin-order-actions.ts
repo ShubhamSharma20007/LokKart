@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/imagekit-server";
+import { sendOrderShippedNotification } from "@/lib/mailer";
 import {
   createNimbusOrder,
   bookNimbusShipment,

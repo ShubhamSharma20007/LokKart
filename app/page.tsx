@@ -9,15 +9,12 @@ import { Separator } from "@/components/ui/separator";
 import { CatalogSkeleton } from "@/components/catalog-skeleton";
 import { categoryIcons } from "@/components/category-icon";
 import { InfiniteProducts } from "@/components/infinity-products";
+import { FAQSection } from "@/components/faq-section";
 import { getLatestProduct, listProductsPage } from "@/lib/catalog";
 import { cn } from "@/lib/utils";
 import { categories, discountPct, formatINR } from "@/lib/products";
 
-const steps = [
-  { title: "Pick a product", body: "Every product shows the MRP, our price and what is in stock." },
-  { title: "Add to cart", body: "Change quantities in your cart and review the total." },
-  { title: "Pay your way", body: "Pay with UPI, or pay Cash on Delivery when it arrives." },
-];
+
 
 export default function Home() {
   return (
@@ -63,21 +60,7 @@ export default function Home() {
         </ul>
       </section>
 
-      {/* Above the endless product list, so it stays reachable. */}
-      <section className="mx-auto max-w-6xl px-4 pt-12">
-        <h2 className="font-heading text-2xl font-bold tracking-tight">How it works</h2>
-        <ol className="mt-6 grid gap-6 md:grid-cols-3">
-          {steps.map((s, i) => (
-            <li key={s.title} className="flex gap-4">
-              <span className="font-heading grid size-9 shrink-0 place-items-center rounded-full bg-brand text-brand-foreground">{i + 1}</span>
-              <div>
-                <p className="font-medium">{s.title}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{s.body}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
-      </section>
+
 
       <section id="products" className="mx-auto max-w-6xl scroll-mt-16 px-4 py-12">
         <div className="flex items-baseline justify-between gap-4">
@@ -105,6 +88,8 @@ export default function Home() {
           <LatestProducts />
         </Suspense>
       </section>
+
+      <FAQSection />
     </main>
   );
 }
