@@ -98,7 +98,7 @@ function baseLayout({
 }
 
 // ─── 1. Order Placed Template ────────────────────────────────────────────────
-export function renderOrderPlacedEmail(data: OrderEmailData): { subject: string; html: string } {
+export function renderOrderPlacedEmail(data: OrderEmailData): { subject: string; html: string; text: string } {
   const isCod = data.paymentMethod === "COD";
   const appUrl = data.appUrl || "http://localhost:3000";
 
@@ -188,6 +188,7 @@ export function renderOrderPlacedEmail(data: OrderEmailData): { subject: string;
 
   return {
     subject: `Order Confirmed: ${data.ref} - Bachatnix`,
+    text: `Hi ${data.name},\n\nThank you for your order on Bachatnix!\nOrder Reference: ${data.ref}\nPayment: ${data.paymentMethod === "COD" ? "Cash on Delivery" : "UPI (Paid)"}\nTotal Amount: ${formatINR(data.total)}\nDelivery Address: ${data.address}, ${data.city}, ${data.state} - ${data.pincode}\n\nTrack your order anytime at: ${appUrl}/orders\n\nThank you for choosing Bachatnix!`,
     html: baseLayout({
       title: `Order Placed - ${data.ref}`,
       previewText: `Thank you for your order! Your reference is ${data.ref}. Total: ${formatINR(data.total)}.`,
@@ -198,7 +199,7 @@ export function renderOrderPlacedEmail(data: OrderEmailData): { subject: string;
 }
 
 // ─── 2. Order Shipped / Dispatched Template ──────────────────────────────────
-export function renderOrderShippedEmail(data: OrderEmailData): { subject: string; html: string } {
+export function renderOrderShippedEmail(data: OrderEmailData): { subject: string; html: string; text: string } {
   const appUrl = data.appUrl || "http://localhost:3000";
   const trackingUrl =
     data.trackingUrl ||
@@ -245,6 +246,7 @@ export function renderOrderShippedEmail(data: OrderEmailData): { subject: string
 
   return {
     subject: `Order Shipped! 🚚 Track ${data.ref} (${data.courierName || "Courier"}) - Bachatnix`,
+    text: `Hi ${data.name},\n\nYour Bachatnix order ${data.ref} has been handed over to our courier partner (${data.courierName || "Courier"}).\nAWB Tracking Number: ${data.awb || "In transit"}\n\nTrack your shipment live at: ${trackingUrl}\n\nThank you for choosing Bachatnix!`,
     html: baseLayout({
       title: `Order Shipped - ${data.ref}`,
       previewText: `Your Bachatnix order ${data.ref} is on the way via ${data.courierName || "Courier"}! Track live.`,
@@ -255,7 +257,7 @@ export function renderOrderShippedEmail(data: OrderEmailData): { subject: string
 }
 
 // ─── 3. Order Delivered Template ─────────────────────────────────────────────
-export function renderOrderDeliveredEmail(data: OrderEmailData): { subject: string; html: string } {
+export function renderOrderDeliveredEmail(data: OrderEmailData): { subject: string; html: string; text: string } {
   const appUrl = data.appUrl || "http://localhost:3000";
 
   const content = `
@@ -280,6 +282,7 @@ export function renderOrderDeliveredEmail(data: OrderEmailData): { subject: stri
 
   return {
     subject: `Delivered! 🎉 Your Bachatnix Order ${data.ref} has arrived`,
+    text: `Hi ${data.name},\n\nGreat news! Your Bachatnix order ${data.ref} has been delivered successfully.\n\nWe hope you love your purchase! Thank you for choosing Bachatnix.\nVisit our store anytime: ${appUrl}/products`,
     html: baseLayout({
       title: `Order Delivered - ${data.ref}`,
       previewText: `Your order ${data.ref} was delivered successfully. Thank you for shopping with Bachatnix!`,

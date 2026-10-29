@@ -23,6 +23,10 @@ function getTransporter() {
       user,
       pass,
     },
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+
   });
 }
 
@@ -91,7 +95,7 @@ export async function sendOrderPlacedNotification(orderIdentifier: string): Prom
       return false;
     }
 
-    const { subject, html } = renderOrderPlacedEmail(data);
+    const { subject, html, text } = renderOrderPlacedEmail(data);
 
     const fromAddress = `"Bachatnix Orders" <${process.env.GMAIL_USER}>`;
 
@@ -99,6 +103,7 @@ export async function sendOrderPlacedNotification(orderIdentifier: string): Prom
       from: fromAddress,
       to: data.email,
       subject,
+      text,
       html,
     });
 
@@ -124,7 +129,7 @@ export async function sendOrderShippedNotification(orderIdentifier: string): Pro
       return false;
     }
 
-    const { subject, html } = renderOrderShippedEmail(data);
+    const { subject, html, text } = renderOrderShippedEmail(data);
 
     const fromAddress = `"Bachatnix Orders" <${process.env.GMAIL_USER}>`;
 
@@ -132,6 +137,7 @@ export async function sendOrderShippedNotification(orderIdentifier: string): Pro
       from: fromAddress,
       to: data.email,
       subject,
+      text,
       html,
     });
 
@@ -157,7 +163,7 @@ export async function sendOrderDeliveredNotification(orderIdentifier: string): P
       return false;
     }
 
-    const { subject, html } = renderOrderDeliveredEmail(data);
+    const { subject, html, text } = renderOrderDeliveredEmail(data);
 
     const fromAddress = `"Bachatnix Orders" <${process.env.GMAIL_USER}>`;
 
@@ -165,6 +171,7 @@ export async function sendOrderDeliveredNotification(orderIdentifier: string): P
       from: fromAddress,
       to: data.email,
       subject,
+      text,
       html,
     });
 
