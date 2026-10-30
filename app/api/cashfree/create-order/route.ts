@@ -152,11 +152,20 @@ export async function POST(req: NextRequest) {
     }
 
     // 5. Create Cashfree order
-    const origin =
+    let origin =
       process.env.NEXT_PUBLIC_APP_URL ||
       req.nextUrl.origin ||
       req.headers.get("origin") ||
-      "http://localhost:3000";
+      "https://bachatnix.vercel.app";
+
+    // Cashfree strictly enforces HTTPS for return_url.
+    // http://localhost is rejected by Cashfree's API validator.
+    if (origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1")) {
+      origin = "https://bachatnix.vercel.app";
+    } else if (origin.startsWith("http://")) {
+      origin = origin.replace("http://", "https://");
+    }
+
     const returnUrl = `${origin.replace(/\/$/, "")}/orders/payment-result?orderId=${orderRef}`;
     const cfResult = await createCashfreeOrder({
       orderId: orderRef,

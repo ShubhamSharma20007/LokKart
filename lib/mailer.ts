@@ -98,10 +98,12 @@ export async function sendOrderPlacedNotification(orderIdentifier: string): Prom
     const { subject, html, text } = renderOrderPlacedEmail(data);
 
     const fromAddress = `"Bachatnix Orders" <${process.env.GMAIL_USER}>`;
+    const adminEmail = process.env.GMAIL_USER;
 
     await transporter.sendMail({
       from: fromAddress,
       to: data.email,
+      ...(adminEmail && adminEmail !== data.email ? { bcc: adminEmail } : {}),
       subject,
       text,
       html,
@@ -132,10 +134,12 @@ export async function sendOrderShippedNotification(orderIdentifier: string): Pro
     const { subject, html, text } = renderOrderShippedEmail(data);
 
     const fromAddress = `"Bachatnix Orders" <${process.env.GMAIL_USER}>`;
+    const adminEmail = process.env.GMAIL_USER;
 
     await transporter.sendMail({
       from: fromAddress,
       to: data.email,
+      ...(adminEmail && adminEmail !== data.email ? { bcc: adminEmail } : {}),
       subject,
       text,
       html,
@@ -166,10 +170,12 @@ export async function sendOrderDeliveredNotification(orderIdentifier: string): P
     const { subject, html, text } = renderOrderDeliveredEmail(data);
 
     const fromAddress = `"Bachatnix Orders" <${process.env.GMAIL_USER}>`;
+    const adminEmail = process.env.GMAIL_USER;
 
     await transporter.sendMail({
       from: fromAddress,
       to: data.email,
+      ...(adminEmail && adminEmail !== data.email ? { bcc: adminEmail } : {}),
       subject,
       text,
       html,
