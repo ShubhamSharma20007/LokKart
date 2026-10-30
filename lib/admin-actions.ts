@@ -15,6 +15,8 @@ export type AdminProduct = {
   stock: number;
   imageUrl: string | null;
   imageFileId: string | null;
+  images?: string[];
+  imageFileIds?: string[];
   weightG: number;
   lengthCm: number;
   widthCm: number;
@@ -45,15 +47,33 @@ export async function listAdminProducts(idToken: string, page = 1, pageSize = 10
       skip: (current - 1) * size,
       take: size,
       select: {
-        id: true, title: true, description: true, category: true,
-        price: true, basePrice: true, shippingBuffer: true, mrp: true, stock: true, imageUrl: true, imageFileId: true, createdAt: true,
-        weightG: true, lengthCm: true, widthCm: true, heightCm: true,
+        id: true,
+        title: true,
+        description: true,
+        category: true,
+        price: true,
+        basePrice: true,
+        shippingBuffer: true,
+        mrp: true,
+        stock: true,
+        imageUrl: true,
+        imageFileId: true,
+        images: true,
+        imageFileIds: true,
+        createdAt: true,
+        weightG: true,
+        lengthCm: true,
+        widthCm: true,
+        heightCm: true,
       },
     });
 
     return {
       ok: true,
-      products: rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })),
+      products: rows.map((r) => ({
+        ...r,
+        createdAt: r.createdAt.toISOString(),
+      })),
       total,
       page: current,
       totalPages,

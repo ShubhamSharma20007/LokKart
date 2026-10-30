@@ -84,6 +84,23 @@ export async function createProduct(_prev: FormState, fd: FormData): Promise<For
     return fail(s);
   }
 
+  const imagesJson = String(fd.get("imagesJson") ?? "[]");
+  const imageFileIdsJson = String(fd.get("imageFileIdsJson") ?? "[]");
+  let images: string[] = [];
+  let imageFileIds: string[] = [];
+  try {
+    images = JSON.parse(imagesJson);
+    imageFileIds = JSON.parse(imageFileIdsJson);
+  } catch {}
+
+  if (images.length === 0 && s.values.imageUrl) {
+    images = [s.values.imageUrl];
+    imageFileIds = [s.values.imageUrlFileId || ""];
+  }
+
+  const primaryUrl = images[0] || null;
+  const primaryFileId = imageFileIds[0] || null;
+
   try {
     const product = await prisma.product.create({
       data: {
@@ -94,8 +111,10 @@ export async function createProduct(_prev: FormState, fd: FormData): Promise<For
         mrp: mrp,
         stock: Number(s.values.stock),
         ...shippingData(s),
-        imageUrl: imageUrl || null,
-        imageFileId: imageUrl ? fileId : null,
+        imageUrl: primaryUrl,
+        imageFileId: primaryFileId,
+        images: images,
+        imageFileIds: imageFileIds,
         basePrice: basePrice,
         shippingBuffer: shippingBuffer,
       },
@@ -104,8 +123,10 @@ export async function createProduct(_prev: FormState, fd: FormData): Promise<For
     return { ...s, ok: true, ref: product.id };
   } catch (err) {
     console.error("createProduct failed", err);
-    // Don't leave an orphaned upload behind if the product was not saved.
-    if (imageUrl) await deleteImageKitFile(fileId);
+    // Don't leave orphaned uploads behind if the product was not saved.
+    for (const fid of imageFileIds) {
+      if (fid) await deleteImageKitFile(fid);
+    }
     return fail(s, "We could not save the product. Please try again.");
   }
 }
@@ -123,7 +144,7 @@ export async function deleteProduct(idToken: string, productId: string): Promise
   try {
     const product = await prisma.product.findUnique({
       where: { id: productId },
-      select: { imageFileId: true, _count: { select: { orderItems: true } } },
+      select: { imageFileId: true, imageFileIds: true, _count: { select: { orderItems: true } } },
     });
     if (!product) return { ok: false, message: "That product no longer exists." };
 
@@ -134,8 +155,15 @@ export async function deleteProduct(idToken: string, productId: string): Promise
 
     await prisma.product.delete({ where: { id: productId } });
 
-    // The row is already gone; a failed image delete is logged but doesn't fail the request.
-    if (product.imageFileId) await deleteImageKitFile(product.imageFileId);
+    // Delete all associated images from ImageKit
+    const toDelete = new Set<string>();
+    if (product.imageFileId) toDelete.add(product.imageFileId);
+    for (const fid of product.imageFileIds || []) {
+      if (fid) toDelete.add(fid);
+    }
+    for (const fid of toDelete) {
+      await deleteImageKitFile(fid);
+    }
 
     return { ok: true };
   } catch (err) {
@@ -273,22 +301,38 @@ export async function updateProduct(_prev: FormState, fd: FormData): Promise<For
 
   const existing = await prisma.product.findUnique({
     where: { id: s.values.id },
-    select: { imageFileId: true, shippingBuffer: true, imageUrl: true },
+    select: { imageFileId: true, imageFileIds: true, shippingBuffer: true, imageUrl: true, images: true },
   });
   if (!existing) return fail(s, "That product no longer exists.");
 
-  const { imageUrl, imageUrlFileId: fileId } = s.values;
-  const endpoint = process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT;
-  // Only validate when a new image was uploaded
-  if (imageUrl && imageUrl !== existing.imageUrl) {
-    if (!endpoint || !imageUrl.startsWith(`${endpoint}/`) || !/^[A-Za-z0-9_-]{10,64}$/.test(fileId)) {
-      s.errors.imageUrl = "Upload the image again";
-    }
+  const imagesJson = String(fd.get("imagesJson") ?? "[]");
+  const imageFileIdsJson = String(fd.get("imageFileIdsJson") ?? "[]");
+  let images: string[] = [];
+  let imageFileIds: string[] = [];
+  try {
+    images = JSON.parse(imagesJson);
+    imageFileIds = JSON.parse(imageFileIdsJson);
+  } catch {}
+
+  // Fallback if imagesJson not provided
+  if (images.length === 0 && s.values.imageUrl) {
+    images = [s.values.imageUrl];
+    imageFileIds = [s.values.imageUrlFileId || ""];
   }
+
+  const primaryUrl = images[0] || null;
+  const primaryFileId = imageFileIds[0] || null;
+
   if (Object.keys(s.errors).length) return fail(s);
 
-  const newFileId = imageUrl ? (imageUrl === existing.imageUrl ? existing.imageFileId : fileId) : null;
-  const imageChanged = newFileId !== existing.imageFileId;
+  // Compute removed image file IDs so we can delete them from ImageKit
+  const oldIds = new Set<string>();
+  if (existing.imageFileId) oldIds.add(existing.imageFileId);
+  for (const fid of existing.imageFileIds || []) {
+    if (fid) oldIds.add(fid);
+  }
+  const newIds = new Set(imageFileIds);
+  const toDelete = Array.from(oldIds).filter((id) => id && !newIds.has(id));
 
   const basePrice = Number(s.values.price);
   const mrp = Number(s.values.mrp);
@@ -318,19 +362,21 @@ export async function updateProduct(_prev: FormState, fd: FormData): Promise<For
         mrp: mrp,
         stock: Number(s.values.stock),
         ...shippingData(s),
-        imageUrl: imageUrl || null,
-        imageFileId: newFileId,
+        imageUrl: primaryUrl,
+        imageFileId: primaryFileId,
+        images: images,
+        imageFileIds: imageFileIds,
       },
     });
   } catch (err) {
     console.error("updateProduct failed", err);
-    // Don't leave the freshly uploaded image orphaned.
-    if (imageChanged && newFileId) await deleteImageKitFile(newFileId);
     return fail(s, "We could not save the changes. Please try again.");
   }
 
-  // The row is saved; remove the replaced/cleared image from ImageKit.
-  if (imageChanged && existing.imageFileId) await deleteImageKitFile(existing.imageFileId);
+  // The row is saved; remove any discarded images from ImageKit.
+  for (const fid of toDelete) {
+    await deleteImageKitFile(fid);
+  }
 
   return { ...s, ok: true, ref: s.values.id };
 }

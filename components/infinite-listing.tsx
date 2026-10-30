@@ -67,7 +67,7 @@ export function InfiniteListing({
 
   return (
     <>
-      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3" aria-busy={loading}>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4" aria-busy={loading}>
         {products.map((p) => (
           <ProductCard key={p.id} product={p} />
         ))}

@@ -212,7 +212,7 @@ function ListingSkeleton() {
       <div className="h-8 w-56 animate-pulse rounded bg-muted" />
       <div className="mt-6 grid gap-8 lg:grid-cols-[15rem_1fr]">
         <div className="hidden h-72 animate-pulse rounded-xl bg-muted lg:block" />
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
           {[0, 1, 2].map((i) => (
             <div key={i} className="h-80 animate-pulse rounded-xl bg-muted" />
           ))}

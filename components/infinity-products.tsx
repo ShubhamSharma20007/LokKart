@@ -69,12 +69,12 @@ export function InfiniteProducts({
 
   return (
     <>
-      <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-busy={loading}>
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5" aria-busy={loading}>
         {products.map((p) => (
           <ProductCard key={p.id} product={p} />
         ))}
         {loading &&
-          [0, 1, 2].map((i) => <div key={`loading-${i}`} className="h-80 animate-pulse rounded-xl bg-muted" aria-hidden />)}
+          [0, 1, 2, 3].map((i) => <div key={`loading-${i}`} className="h-64 animate-pulse rounded-2xl bg-muted" aria-hidden />)}
       </div>
 
       {cursor && <div ref={sentinel} className="h-px" aria-hidden />}

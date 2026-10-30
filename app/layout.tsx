@@ -48,7 +48,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               {children}
             </Suspense>
           </div>
-          <SiteFooter />
+         <Suspense>
+           <SiteFooter />
+         </Suspense>
         </Providers>
         <Toaster closeButton
           toastOptions={{

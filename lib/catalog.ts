@@ -14,6 +14,7 @@ export type StoreProduct = {
   mrp: number;
   stock: number;
   imageUrl: string | null;
+  images: string[];
 };
 
 type Row = Omit<StoreProduct, "category"> & { category: string };
@@ -30,6 +31,7 @@ const select = {
   mrp: true,
   stock: true,
   imageUrl: true,
+  images: true,
 } as const;
 
 // A row whose category isn't one of the store's categories has no icon or filter,
@@ -39,7 +41,13 @@ function toStoreProduct(row: Row): StoreProduct | null {
     console.warn(`Product ${row.id} skipped: unknown category "${row.category}"`);
     return null;
   }
-  return { ...row, category: row.category as Category };
+  const images =
+    row.images && row.images.length > 0
+      ? row.images
+      : row.imageUrl
+      ? [row.imageUrl]
+      : [];
+  return { ...row, category: row.category as Category, images };
 }
 
 const keep = (rows: Row[]): StoreProduct[] =>

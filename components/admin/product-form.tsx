@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useActionState, useEffect, useRef, useState } from "react";
+import { startTransition, useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import {
   Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Field, FormError, SubmitButton } from "@/components/formField";
-import { ImageUpload } from "@/components/image-upload";
+import { MultiImageUpload } from "@/components/multi-image-upload";
 import { auth } from "@/hooks/useFirebaseAuth";
 import { createProduct, updateProduct } from "@/lib/actions";
 import { initialState, type FormState } from "@/lib/forms";
@@ -125,6 +125,18 @@ export function ProductForm({
     if (state.values.category) setCategory(state.values.category);
   }, [state]);
 
+  const defaultImages = useMemo(() => {
+    if (product?.images && product.images.length > 0) return product.images;
+    if (product?.imageUrl) return [product.imageUrl];
+    return [];
+  }, [product?.images, product?.imageUrl]);
+
+  const defaultFileIds = useMemo(() => {
+    if (product?.imageFileIds && product.imageFileIds.length > 0) return product.imageFileIds;
+    if (product?.imageFileId) return [product.imageFileId];
+    return [];
+  }, [product?.imageFileIds, product?.imageFileId]);
+
   // Defaults come from the product being edited; after a failed submit, the submitted values win.
   const initial: Record<string, string> = product
     ? {
@@ -201,11 +213,10 @@ export function ProductForm({
       </Field>
 
       <div className="space-y-1.5">
-        <p className="text-sm font-medium">Product image</p>
-        <ImageUpload
-          name="imageUrl"
-          defaultValue={v("imageUrl")}
-          defaultFileId={v("imageUrlFileId")}
+        <p className="text-sm font-medium">Product images (Up to 3)</p>
+        <MultiImageUpload
+          defaultImages={defaultImages}
+          defaultFileIds={defaultFileIds}
           error={errors.imageUrl}
           onBusyChange={setUploading}
         />

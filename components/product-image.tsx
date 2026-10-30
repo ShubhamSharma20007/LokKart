@@ -26,7 +26,7 @@ export function ProductImage({
         alt={product.title}
         loading={eager ? "eager" : "lazy"}
         decoding="async"
-        className={cn("size-full object-cover", className)}
+        className={cn("size-full object-contain", className)}
       />
     );
   }

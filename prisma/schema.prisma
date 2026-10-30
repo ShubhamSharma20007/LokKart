@@ -54,6 +54,8 @@ price           Int
   stock           Int
   imageUrl        String?
   imageFileId     String?
+  images          String[]    @default([])
+  imageFileIds    String[]    @default([])
   // Packed size of ONE piece. Used to price delivery. Defaults to light garment flyer (200g, 25x20x3 cm).
   weightG         Int         @default(200)
   lengthCm        Int         @default(25)
