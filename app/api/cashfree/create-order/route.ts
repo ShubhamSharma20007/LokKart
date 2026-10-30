@@ -199,6 +199,7 @@ export async function POST(req: NextRequest) {
       ok: true,
       paymentSessionId: cfResult.paymentSessionId,
       cfOrderId: cfResult.cfOrderId,
+      paymentMode: cfResult.paymentMode,
       orderId,
       orderRef,
     });

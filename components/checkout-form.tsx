@@ -302,6 +302,7 @@ export function CheckoutForm() {
         message?: string;
         paymentSessionId?: string;
         orderRef?: string;
+        paymentMode?: "production" | "sandbox";
       };
 
       if (!data.ok || !data.paymentSessionId || !data.orderRef) {
@@ -312,7 +313,7 @@ export function CheckoutForm() {
       // 2. Load Cashfree SDK dynamically and open checkout
       const { load } = await import("@cashfreepayments/cashfree-js");
       const cashfree = await load({
-        mode: process.env.NODE_ENV === "production" ? "production" : "sandbox",
+        mode: data.paymentMode ?? "sandbox",
       });
 
       const result = await cashfree.checkout({

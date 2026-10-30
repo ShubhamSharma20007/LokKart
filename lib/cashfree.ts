@@ -6,17 +6,42 @@
 
 import crypto from "node:crypto";
 
-const CF_BASE =
-  process.env.NODE_ENV === "production"
+/**
+ * Returns Cashfree API base URL.
+ * Automatically detects whether to use sandbox or production:
+ * 1. Explicit CASHFREE_MODE="production" or "sandbox"
+ * 2. If CASHFREE_APP_ID starts with "TEST" or secret contains "_test_", ALWAYS use sandbox.
+ * 3. Default: production in NODE_ENV===production only if not a test key.
+ */
+export function getCashfreeBaseUrl(): string {
+  if (process.env.CASHFREE_MODE === "production") return "https://api.cashfree.com/pg";
+  if (process.env.CASHFREE_MODE === "sandbox") return "https://sandbox.cashfree.com/pg";
+
+  const appId = process.env.CASHFREE_APP_ID || "";
+  const secret = process.env.CASHFREE_APP_SECRET_KEY || "";
+
+  // If using test credentials, hit sandbox even in production environment
+  if (appId.startsWith("TEST") || secret.includes("_test_")) {
+    return "https://sandbox.cashfree.com/pg";
+  }
+
+  return process.env.NODE_ENV === "production"
     ? "https://api.cashfree.com/pg"
     : "https://sandbox.cashfree.com/pg";
+}
 
-const CF_HEADERS = {
-  "x-api-version": "2023-08-01",
-  "x-client-id": process.env.CASHFREE_APP_ID!,
-  "x-client-secret": process.env.CASHFREE_APP_SECRET_KEY!,
-  "Content-Type": "application/json",
-} as const;
+export function isCashfreeProduction(): boolean {
+  return getCashfreeBaseUrl() === "https://api.cashfree.com/pg";
+}
+
+function getCashfreeHeaders() {
+  return {
+    "x-api-version": "2023-08-01",
+    "x-client-id": process.env.CASHFREE_APP_ID?.trim() || "",
+    "x-client-secret": process.env.CASHFREE_APP_SECRET_KEY?.trim() || "",
+    "Content-Type": "application/json",
+  };
+}
 
 // ─── Create Order ────────────────────────────────────────────────────────────
 
@@ -30,13 +55,22 @@ export type CreateOrderParams = {
 };
 
 export type CreateOrderResult =
-  | { ok: true; paymentSessionId: string; cfOrderId: string }
+  | { ok: true; paymentSessionId: string; cfOrderId: string; paymentMode: "production" | "sandbox" }
   | { ok: false; error: string };
 
 export async function createCashfreeOrder(
   params: CreateOrderParams
 ): Promise<CreateOrderResult> {
   try {
+    const baseUrl = getCashfreeBaseUrl();
+    const headers = getCashfreeHeaders();
+    const isProd = isCashfreeProduction();
+
+    if (!headers["x-client-id"] || !headers["x-client-secret"]) {
+      console.error("[Cashfree] Missing CASHFREE_APP_ID or CASHFREE_APP_SECRET_KEY in environment");
+      return { ok: false, error: "Payment gateway credentials are not configured on the server." };
+    }
+
     const body = {
       order_id: params.orderId,
       order_amount: params.amount,
@@ -55,9 +89,11 @@ export async function createCashfreeOrder(
       },
     };
 
-    const res = await fetch(`${CF_BASE}/orders`, {
+    console.log(`[Cashfree] Creating order ${params.orderId} on ${baseUrl}`);
+
+    const res = await fetch(`${baseUrl}/orders`, {
       method: "POST",
-      headers: CF_HEADERS,
+      headers,
       body: JSON.stringify(body),
     });
 
@@ -78,6 +114,7 @@ export async function createCashfreeOrder(
       ok: true,
       paymentSessionId: json.payment_session_id,
       cfOrderId: String(json.cf_order_id),
+      paymentMode: isProd ? "production" : "sandbox",
     };
   } catch (err) {
     console.error("[Cashfree] createOrder exception:", err);
@@ -97,9 +134,12 @@ export async function getCashfreeOrderStatus(
   cfOrderId: string
 ): Promise<OrderStatusResult> {
   try {
-    const res = await fetch(`${CF_BASE}/orders/${cfOrderId}`, {
+    const baseUrl = getCashfreeBaseUrl();
+    const headers = getCashfreeHeaders();
+
+    const res = await fetch(`${baseUrl}/orders/${cfOrderId}`, {
       method: "GET",
-      headers: CF_HEADERS,
+      headers,
     });
 
     const json = (await res.json()) as {
@@ -124,9 +164,9 @@ export async function getCashfreeOrderStatus(
     let txnId: string | undefined;
     if (status === "PAID") {
       try {
-        const pmtRes = await fetch(`${CF_BASE}/orders/${cfOrderId}/payments`, {
+        const pmtRes = await fetch(`${baseUrl}/orders/${cfOrderId}/payments`, {
           method: "GET",
-          headers: CF_HEADERS,
+          headers,
         });
         const pmtJson = (await pmtRes.json()) as unknown;
         const list = Array.isArray(pmtJson) ? pmtJson : [pmtJson];
