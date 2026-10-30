@@ -10,6 +10,7 @@ import { CatalogSkeleton } from "@/components/catalog-skeleton";
 import { categoryIcons } from "@/components/category-icon";
 import { InfiniteProducts } from "@/components/infinity-products";
 import { FAQSection } from "@/components/faq-section";
+import { SupportSection } from "@/components/support-section";
 import { getLatestProduct, listProductsPage } from "@/lib/catalog";
 import { cn } from "@/lib/utils";
 import { categories, discountPct, formatINR } from "@/lib/products";
@@ -90,6 +91,7 @@ export default function Home() {
       </section>
 
       <FAQSection />
+      <SupportSection email={process.env.GMAIL_USER} />
     </main>
   );
 }
