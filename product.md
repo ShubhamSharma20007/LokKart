@@ -26,7 +26,7 @@
 
 <!--  IN PRODUCTION -->
 add the prod url in cashfree
-https://yourdomain.com/api/webhooks/cashfree
+https://bachatnix.vercel.app/api/webhooks/cashfree
 
 nimbuspost add the url 
-https://yourdomain.com/api/webhooks/nimbus
+https://bachatnix.vercel.app/api/webhooks/nimbus
