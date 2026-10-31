@@ -19,9 +19,9 @@ import type { AdminProduct } from "@/lib/admin-actions";
 export const SHIPPING_PRESETS = [
   {
     id: "tshirt",
-    label: "T-Shirt / Shirt (Light)",
-    short: "T-Shirt / Shirt",
-    category: "Garments",
+    label: "T-Shirt / Top / Light Garment",
+    short: "T-Shirt / Top",
+    category: "T-Shirts",
     weightG: 200,
     lengthCm: 25,
     widthCm: 20,
@@ -31,7 +31,7 @@ export const SHIPPING_PRESETS = [
     id: "lower",
     label: "Lower / Track Pant / Shorts",
     short: "Lower / Shorts",
-    category: "Garments",
+    category: "Track Pants & Lowers",
     weightG: 250,
     lengthCm: 30,
     widthCm: 25,
@@ -39,28 +39,28 @@ export const SHIPPING_PRESETS = [
   },
   {
     id: "heavy_garment",
-    label: "Jogger / Jeans / Hoodie (Heavy)",
+    label: "Jeans / Hoodie / Heavy Jacket",
     short: "Jeans / Hoodie",
-    category: "Garments",
-    weightG: 400,
+    category: "Jeans",
+    weightG: 450,
     lengthCm: 32,
     widthCm: 25,
     heightCm: 5,
   },
   {
-    id: "tools",
-    label: "Accessories / Spanner / Small Tool",
-    short: "Accessories / Tool",
-    category: "Industrial parts",
-    weightG: 150,
-    lengthCm: 15,
-    widthCm: 10,
-    heightCm: 3,
+    id: "ethnic",
+    label: "Saree / Kurti / Ethnic Wear",
+    short: "Saree / Ethnic",
+    category: "Sarees & Ethnic",
+    weightG: 350,
+    lengthCm: 30,
+    widthCm: 22,
+    heightCm: 4,
   },
   {
-    id: "bada_box",
-    label: "Bada Box / Shoes / Electronics",
-    short: "Bada Box / Shoes",
+    id: "box_pack",
+    label: "Box Pack / Footwear / Bulk Order",
+    short: "Box / Footwear",
     category: "Footwear",
     weightG: 800,
     lengthCm: 30,
@@ -81,7 +81,13 @@ export function ProductForm({
   const editing = !!product;
   const [state, action, pending] = useActionState(editing ? updateProduct : createProduct, initialState);
   const [uploading, setUploading] = useState(false);
-  const [category, setCategory] = useState<string | null>(product?.category ?? "Garments");
+  
+  const initialCategory = product?.category ?? "T-Shirts";
+  const [isCustomCategory, setIsCustomCategory] = useState(
+    !!product?.category && !categories.includes(product.category)
+  );
+  const [category, setCategory] = useState<string | null>(initialCategory);
+
   const [weightG, setWeightG] = useState(product ? String(product.weightG) : "200");
   const [lengthCm, setLengthCm] = useState(product ? String(product.lengthCm) : "25");
   const [widthCm, setWidthCm] = useState(product ? String(product.widthCm) : "20");
@@ -98,7 +104,8 @@ export function ProductForm({
     setLengthCm(String(p.lengthCm));
     setWidthCm(String(p.widthCm));
     setHeightCm(String(p.heightCm));
-    if (!product && p.category && (categories as readonly string[]).includes(p.category)) {
+    if (!product && p.category) {
+      setIsCustomCategory(!categories.includes(p.category));
       setCategory(p.category);
     }
   };
@@ -107,11 +114,13 @@ export function ProductForm({
     if (!val) return;
     setCategory(val);
     if (!editing) {
-      if (val === "Garments") {
+      if (val === "T-Shirts" || val === "Shirts") {
         applyPreset(SHIPPING_PRESETS[0]);
-      } else if (val === "Footwear" || val === "Electronics") {
-        applyPreset(SHIPPING_PRESETS[4]);
-      } else if (val === "Industrial parts") {
+      } else if (val === "Track Pants & Lowers" || val === "Shorts") {
+        applyPreset(SHIPPING_PRESETS[1]);
+      } else if (val === "Jeans" || val === "Hoodies & Jackets") {
+        applyPreset(SHIPPING_PRESETS[2]);
+      } else if (val === "Sarees & Ethnic" || val === "Kurtis") {
         applyPreset(SHIPPING_PRESETS[3]);
       }
     }
@@ -122,57 +131,68 @@ export function ProductForm({
     if (state.values.lengthCm) setLengthCm(state.values.lengthCm);
     if (state.values.widthCm) setWidthCm(state.values.widthCm);
     if (state.values.heightCm) setHeightCm(state.values.heightCm);
-    if (state.values.category) setCategory(state.values.category);
+    if (state.values.category) {
+      setCategory(state.values.category);
+      if (!categories.includes(state.values.category)) {
+        setIsCustomCategory(true);
+      }
+    }
   }, [state]);
 
   const defaultImages = useMemo(() => {
     if (product?.images && product.images.length > 0) return product.images;
     if (product?.imageUrl) return [product.imageUrl];
     return [];
-  }, [product?.images, product?.imageUrl]);
+  }, [product]);
 
   const defaultFileIds = useMemo(() => {
     if (product?.imageFileIds && product.imageFileIds.length > 0) return product.imageFileIds;
     if (product?.imageFileId) return [product.imageFileId];
     return [];
-  }, [product?.imageFileIds, product?.imageFileId]);
+  }, [product]);
 
-  // Defaults come from the product being edited; after a failed submit, the submitted values win.
-  const initial: Record<string, string> = product
-    ? {
-        title: product.title,
-        category: product.category,
-        description: product.description,
-        imageUrl: product.imageUrl ?? "",
-        imageUrlFileId: product.imageFileId ?? "",
-        mrp: String(product.mrp),
-        price: String(product.basePrice && product.basePrice > 0 ? product.basePrice : product.price),
-        stock: String(product.stock),
-        weightG: String(product.weightG),
-        lengthCm: String(product.lengthCm),
-        widthCm: String(product.widthCm),
-        heightCm: String(product.heightCm),
-      }
-    : {};
-  const v = (k: string) => state.values[k] ?? initial[k] ?? "";
-  const errors = state.errors;
+  const initialValues = useMemo(
+    () =>
+      product
+        ? {
+            title: product.title,
+            category: product.category,
+            description: product.description,
+            price: product.basePrice ? String(product.basePrice) : String(product.price),
+            mrp: String(product.mrp),
+            stock: String(product.stock),
+            weightG: String(product.weightG),
+            lengthCm: String(product.lengthCm),
+            widthCm: String(product.widthCm),
+            heightCm: String(product.heightCm),
+          }
+        : {},
+    [product],
+  );
 
   useEffect(() => {
-    if (state.ok && handled.current !== state) {
-      handled.current = state;
+    if (!state.message || state === handled.current) return;
+    handled.current = state;
+    if (state.ok) {
       toast.success(editing ? "Product updated" : "Product added");
       onSaved();
+    } else {
+      toast.error(state.message);
     }
   }, [state, editing, onSaved]);
 
   const submit = async (fd: FormData) => {
     const token = await auth.currentUser?.getIdToken();
     if (token) fd.set("token", token);
+    if (category) fd.set("category", category);
     startTransition(() => action(fd));
   };
 
-  const num = (name: string, label: string) => (
-    <Field label={label} name={name} error={errors[name]}>
+  const v = (name: string) => state.values[name] ?? initialValues[name as keyof typeof initialValues] ?? "";
+  const errors = state.errors ?? {};
+
+  const num = (name: "price" | "mrp" | "stock", label: string) => (
+    <Field key={name} label={label} name={name} error={errors[name]}>
       <Input
         id={name}
         name={name}
@@ -194,18 +214,78 @@ export function ProductForm({
       </Field>
 
       <Field label="Category" name="category" error={errors.category}>
-        <Select name="category" value={category ?? "Garments"} onValueChange={handleCategoryChange}>
-          <SelectTrigger id="category" className="w-full" aria-invalid={!!errors.category}>
-            <SelectValue placeholder="Select a category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {categories.map((c) => (
-                <SelectItem key={c} value={c}>{c}</SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+        <div className="space-y-2">
+          {!isCustomCategory ? (
+            <div className="flex gap-2">
+              <Select
+                value={category && categories.includes(category) ? category : "T-Shirts"}
+                onValueChange={(val) => {
+                  if (val === "__custom__") {
+                    setIsCustomCategory(true);
+                    setCategory("");
+                  } else {
+                    handleCategoryChange(val);
+                  }
+                }}
+              >
+                <SelectTrigger id="category" className="w-full" aria-invalid={!!errors.category}>
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {categories.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                    <SelectItem value="__custom__" className="font-semibold text-primary">
+                      + Enter Custom Category...
+                    </SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0 text-xs"
+                onClick={() => {
+                  setIsCustomCategory(true);
+                  setCategory("");
+                }}
+              >
+                + New Category
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <div className="flex gap-2">
+                <Input
+                  id="category"
+                  name="category"
+                  value={category ?? ""}
+                  onChange={(e) => setCategory(e.target.value)}
+                  placeholder="e.g. Winter Wear, Footwear, Sarees, Kurti..."
+                  autoFocus
+                  aria-invalid={!!errors.category}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setIsCustomCategory(false);
+                    setCategory(categories[0] || "T-Shirts");
+                  }}
+                >
+                  Choose from list
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Type any category name. It will dynamically show up across your store as soon as products are added!
+              </p>
+            </div>
+          )}
+        </div>
       </Field>
 
       <Field label="Description" name="description" error={errors.description}>
@@ -258,19 +338,19 @@ export function ProductForm({
                 key={p.id}
                 type="button"
                 onClick={() => applyPreset(p)}
-                className={`text-xs px-2.5 py-1 rounded-md border transition-all ${
+                className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
                   active
-                    ? "bg-primary text-primary-foreground border-primary font-medium shadow-sm"
-                    : "bg-background hover:bg-muted text-muted-foreground hover:text-foreground border-input"
+                    ? "border-primary bg-primary text-primary-foreground shadow-xs"
+                    : "border-border bg-background hover:bg-muted"
                 }`}
               >
-                {p.short} ({p.weightG}g, {p.lengthCm}×{p.widthCm}×{p.heightCm})
+                {p.short}
               </button>
             );
           })}
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-4 pt-1">
+        <div className="grid grid-cols-2 gap-3 pt-2 sm:grid-cols-4">
           <Field label="Weight (g)" name="weightG" error={errors.weightG}>
             <Input
               id="weightG"
@@ -330,9 +410,11 @@ export function ProductForm({
         </div>
       </fieldset>
 
-      <div className="flex flex-wrap items-center gap-3 pt-1">
-        <SubmitButton pending={pending || uploading}>{editing ? "Save changes" : "Add product"}</SubmitButton>
-        <Button type="button" variant="ghost" onClick={onCancel} disabled={pending}>
+      <div className="flex gap-2 pt-2">
+        <SubmitButton pending={pending || uploading}>
+          {editing ? "Save changes" : "Add product"}
+        </SubmitButton>
+        <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>
           Cancel
         </Button>
       </div>

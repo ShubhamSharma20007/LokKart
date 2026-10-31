@@ -5,12 +5,14 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { ArrowLeft, BadgeCheck, Truck, Wallet } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import { AddToCart } from "@/components/add-to-cart";
 import { ProductCard } from "@/components/product-card";
 import { ProductGallery } from "@/components/product-gallery";
 import { StockBadge } from "@/components/stock-badge";
 import { getRelatedProducts, getStoreProduct } from "@/lib/catalog";
 import { formatINR } from "@/lib/products";
+import { cn } from "@/lib/utils";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -42,7 +44,7 @@ async function ProductContent({ params }: Props) {
   // Unknown product ids render app/not-found.tsx, which redirects to "/".
   if (!product) notFound();
 
-  const related = await getRelatedProducts(product, 3);
+  const related = await getRelatedProducts(product, 4);
 
   return (
     <>
@@ -97,8 +99,21 @@ async function ProductContent({ params }: Props) {
       </div>
 
       {related.length > 0 && (
-        <section className="mt-14" aria-labelledby="related">
-          <h2 id="related" className="font-heading text-xl font-bold tracking-tight">You may also like</h2>
+        <section className="mt-14 border-t border-border/40 pt-8" aria-labelledby="related">
+          <div className="flex flex-wrap items-baseline justify-between gap-4">
+            <div>
+              <h2 id="related" className="font-heading text-xl font-bold tracking-tight text-foreground">
+                You may also like
+              </h2>
+              <p className="text-xs text-muted-foreground">More recommendations from {product.category}</p>
+            </div>
+            <Link
+              href={`/products?category=${encodeURIComponent(product.category)}`}
+              className="text-xs sm:text-sm font-semibold text-primary underline-offset-4 hover:underline"
+            >
+              See all in {product.category} →
+            </Link>
+          </div>
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4">
             {related.map((p) => <ProductCard key={p.id} product={p} />)}
           </div>

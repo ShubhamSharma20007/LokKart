@@ -25,7 +25,7 @@ export function EmptyCart() {
       <div className="mt-8 border-t pt-6">
         <p className="text-sm font-medium">Or shop by category</p>
         <div className="mt-3 flex flex-wrap justify-center gap-2">
-          {categories.map((c) => {
+          {categories.slice(0, 5).map((c) => {
             const Icon = categoryIcons[c];
             return (
               <Link

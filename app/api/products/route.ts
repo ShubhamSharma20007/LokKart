@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { listProductsPage, searchListing } from "@/lib/catalog";
 import { parseListingParams } from "@/lib/listing-params";
 
+// export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);

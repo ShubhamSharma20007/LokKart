@@ -17,9 +17,9 @@ const bricolage = Bricolage_Grotesque({
 });
 
 export const metadata: Metadata = {
-  title: { default: "Bachatnix | Buy surplus stock by the lot", template: "%s | Bachatnix" },
+  title: { default: "Bachatnix | Trendy Clothes & Daily Fashion", template: "%s | Bachatnix" },
   description:
-    "Garments, footwear, electronics and industrial parts from manufacturers clearing unsold inventory, priced below factory cost.",
+    "Buy quality clothes, daily wear, and ethnic fashion at prices well below MRP with 100% Free Shipping and Cash on Delivery.",
   icons: {
     icon: [
       { url: "/favicon.png", type: "image/png" },

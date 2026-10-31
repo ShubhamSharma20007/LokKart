@@ -1,4 +1,4 @@
-import { categories, type Category } from "@/lib/products";
+import type { Category } from "@/lib/products";
 
 // Safe to import from client components: no database code in here.
 
@@ -34,8 +34,8 @@ const toPrice = (v: string | string[] | undefined): number | null => {
 export function parseListingParams(raw: Raw): ListingParams {
   const q = (first(raw.q) ?? "").replace(/\s+/g, " ").trim().slice(0, 80);
 
-  const cat = first(raw.category);
-  const category = cat && (categories as readonly string[]).includes(cat) ? (cat as Category) : null;
+  const cat = first(raw.category)?.trim();
+  const category = cat ? (cat.slice(0, 60) as Category) : null;
 
   let min = toPrice(raw.min);
   let max = toPrice(raw.max);
@@ -50,17 +50,23 @@ export function parseListingParams(raw: Raw): ListingParams {
   return { q, category, min, max, sort, page };
 }
 
-// Builds a /products link. Changing any filter or the sort goes back to page 1,
-// unless the change itself sets a page.
-export function listingHref(base: ListingParams, change: Partial<ListingParams> = {}): string {
-  const p = { ...base, page: 1, ...change };
+// Builds the next URL when the user changes one filter. Omit unchanged keys.
+export function listingHref(
+  current: ListingParams,
+  patch: Partial<ListingParams> = {},
+): string {
+  const next = { ...current, ...patch };
+  // Reset to page 1 whenever any filter changes, unless the patch explicitly sets page.
+  const page = "page" in patch ? next.page : 1;
+
   const sp = new URLSearchParams();
-  if (p.q) sp.set("q", p.q);
-  if (p.category) sp.set("category", p.category);
-  if (p.min !== null) sp.set("min", String(p.min));
-  if (p.max !== null) sp.set("max", String(p.max));
-  if (p.sort !== "new") sp.set("sort", p.sort);
-  if (p.page > 1) sp.set("page", String(p.page));
-  const s = sp.toString();
-  return s ? `/products?${s}` : "/products";
+  if (next.q) sp.set("q", next.q);
+  if (next.category) sp.set("category", next.category);
+  if (next.min !== null) sp.set("min", String(next.min));
+  if (next.max !== null) sp.set("max", String(next.max));
+  if (next.sort !== "new") sp.set("sort", next.sort);
+  if (page > 1) sp.set("page", String(page));
+
+  const qs = sp.toString();
+  return qs ? `/products?${qs}` : "/products";
 }

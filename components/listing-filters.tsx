@@ -1,9 +1,10 @@
 import Link from "next/link";
 import Form from "next/form";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { listingHref, type ListingParams } from "@/lib/listing-params";
-import { categories, type Category } from "@/lib/products";
+import type { Category } from "@/lib/products";
+import { categoryIcons } from "@/components/category-icon";
 import { cn } from "@/lib/utils";
 
 // Category list and price range for the listing page. Every control is a plain
@@ -13,14 +14,22 @@ export function ListingFilters({
   counts,
 }: {
   params: ListingParams;
-  counts: Partial<Record<Category, number>>;
+  counts: Record<string, number>;
 }) {
   const allCount = Object.values(counts).reduce((sum, n) => sum + (n ?? 0), 0);
   const hasFilters = params.category !== null || params.min !== null || params.max !== null;
 
+  // Dynamically collect only categories that have products or are actively selected
+  const categoryList = Array.from(
+    new Set([
+      ...Object.keys(counts),
+      ...(params.category ? [params.category] : []),
+    ])
+  ).filter(Boolean);
+
   const linkClass = (active: boolean) =>
     cn(
-      "flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-muted",
+      "flex items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted",
       active && "bg-muted font-semibold text-primary",
     );
 
@@ -35,14 +44,15 @@ export function ListingFilters({
               aria-current={params.category === null ? "true" : undefined}
               className={linkClass(params.category === null)}
             >
-              All categories
+              <span className="font-medium">All categories</span>
               <span className="text-xs text-muted-foreground">{allCount}</span>
             </Link>
           </li>
-          {categories.map((c) => {
+          {categoryList.map((c) => {
             const n = counts[c] ?? 0;
             const active = params.category === c;
             if (n === 0 && !active) return null;
+            const Icon = categoryIcons[c];
             return (
               <li key={c}>
                 <Link
@@ -50,7 +60,10 @@ export function ListingFilters({
                   aria-current={active ? "true" : undefined}
                   className={linkClass(active)}
                 >
-                  {c}
+                  <span className="flex items-center gap-2 truncate">
+                    <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    <span className="truncate">{c}</span>
+                  </span>
                   <span className="text-xs text-muted-foreground">{n}</span>
                 </Link>
               </li>
@@ -67,36 +80,44 @@ export function ListingFilters({
           {params.sort !== "new" && <input type="hidden" name="sort" value={params.sort} />}
           <div className="flex items-center gap-2">
             <Input
-              name="min"
               type="number"
+              name="min"
               min={0}
-              inputMode="numeric"
+              defaultValue={params.min ?? ""}
               placeholder="Min"
               aria-label="Minimum price in rupees"
-              defaultValue={params.min ?? ""}
+              className="h-8 text-xs"
             />
-            <span className="text-muted-foreground" aria-hidden>to</span>
+            <span className="text-xs text-muted-foreground">to</span>
             <Input
-              name="max"
               type="number"
+              name="max"
               min={0}
-              inputMode="numeric"
+              defaultValue={params.max ?? ""}
               placeholder="Max"
               aria-label="Maximum price in rupees"
-              defaultValue={params.max ?? ""}
+              className="h-8 text-xs"
             />
           </div>
-          <Button type="submit" variant="outline" className="w-full">Apply</Button>
+          <Button type="submit" size="sm" variant="secondary" className="h-8 w-full text-xs">
+            Apply price
+          </Button>
         </Form>
       </section>
 
       {hasFilters && (
-        <Link
-          href={listingHref(params, { category: null, min: null, max: null })}
-          className="inline-block text-sm text-primary underline underline-offset-4"
-        >
-          Clear all filters
-        </Link>
+        <section>
+          <Link
+            href={listingHref(params, { category: null, min: null, max: null })}
+            replace
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              "h-8 w-full text-xs text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Clear all filters
+          </Link>
+        </section>
       )}
     </div>
   );

@@ -21,6 +21,11 @@ export function Catalog({
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<Category | "All">(initialCategory);
 
+  const availableCategories = useMemo(() => {
+    const fromProducts = Array.from(new Set(products.map((p) => p.category))).filter(Boolean);
+    return ["All", ...(fromProducts.length > 0 ? fromProducts : categories)];
+  }, [products]);
+
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return products.filter(
@@ -58,13 +63,13 @@ export function Catalog({
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search products"
+                placeholder="Search clothes and products"
                 aria-label="Search products"
                 className="pl-9"
               />
             </div>
             <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by category">
-              {(["All", ...categories] as const).map((c) => (
+              {availableCategories.map((c) => (
                 <button
                   key={c}
                   type="button"
@@ -85,13 +90,14 @@ export function Catalog({
               <p className="font-medium">No products match your search.</p>
               <p className="mt-1 text-sm text-muted-foreground">Try a different word or pick another category.</p>
               {filtered && (
-                <Button variant="outline" className="mt-4" onClick={reset}>
-                  <X aria-hidden /> Clear filters
+                <Button variant="outline" size="sm" onClick={reset} className="mt-4">
+                  <X aria-hidden />
+                  Reset filters
                 </Button>
               )}
             </div>
           ) : (
-            <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
               {visible.map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}

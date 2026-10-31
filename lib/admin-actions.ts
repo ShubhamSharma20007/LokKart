@@ -28,8 +28,13 @@ export type AdminListResult =
   | { ok: true; products: AdminProduct[]; total: number; page: number; totalPages: number }
   | { ok: false; message: string };
 
-// Admin: every product, newest first.
-export async function listAdminProducts(idToken: string, page = 1, pageSize = 10): Promise<AdminListResult> {
+// Admin: every product, newest first with optional search filter.
+export async function listAdminProducts(
+  idToken: string,
+  page = 1,
+  pageSize = 10,
+  query = ""
+): Promise<AdminListResult> {
   try {
     await requireAdmin(idToken);
   } catch {
@@ -38,11 +43,22 @@ export async function listAdminProducts(idToken: string, page = 1, pageSize = 10
 
   try {
     const size = Math.min(Math.max(Math.floor(pageSize) || 10, 1), 50);
-    const total = await prisma.product.count();
+    const trimmed = query.trim();
+    const where = trimmed
+      ? {
+          OR: [
+            { title: { contains: trimmed, mode: "insensitive" as const } },
+            { category: { contains: trimmed, mode: "insensitive" as const } },
+          ],
+        }
+      : {};
+
+    const total = await prisma.product.count({ where });
     const totalPages = Math.max(1, Math.ceil(total / size));
     const current = Math.min(Math.max(Math.floor(page) || 1, 1), totalPages);
 
     const rows = await prisma.product.findMany({
+      where,
       orderBy: [{ createdAt: "desc" }, { id: "asc" }],
       skip: (current - 1) * size,
       take: size,

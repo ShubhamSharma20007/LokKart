@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
-import { categories, type Category } from "@/lib/products";
+import type { Category } from "@/lib/products";
 import type { ListingParams, ListingSort } from "@/lib/listing-params";
 
 // The shape the storefront components work with. Everything is a plain value,
@@ -34,29 +34,38 @@ const select = {
   images: true,
 } as const;
 
-// A row whose category isn't one of the store's categories has no icon or filter,
-// so it is skipped (and logged) instead of breaking the page.
-function toStoreProduct(row: Row): StoreProduct | null {
-  if (!(categories as readonly string[]).includes(row.category)) {
-    console.warn(`Product ${row.id} skipped: unknown category "${row.category}"`);
-    return null;
-  }
+// Accepts any dynamic category stored in the database without skipping.
+function toStoreProduct(row: Row): StoreProduct {
+  const category = (row.category && row.category.trim()) || "Clothing";
   const images =
     row.images && row.images.length > 0
       ? row.images
       : row.imageUrl
       ? [row.imageUrl]
       : [];
-  return { ...row, category: row.category as Category, images };
+  return { ...row, category, images };
 }
 
-const keep = (rows: Row[]): StoreProduct[] =>
-  rows.flatMap((r) => {
-    const p = toStoreProduct(r);
-    return p ? [p] : [];
-  });
+const keep = (rows: Row[]): StoreProduct[] => rows.map(toStoreProduct);
 
 export const HOME_PAGE_SIZE = 12;
+
+// Fetch all distinct categories currently active in the database
+export const getActiveCategories = cache(async (): Promise<string[]> => {
+  try {
+    const distinct = await prisma.product.findMany({
+      distinct: ["category"],
+      select: { category: true },
+      where: { stock: { gte: 0 } },
+      orderBy: { category: "asc" },
+    });
+    const found = distinct.map((d) => d.category.trim()).filter(Boolean);
+    if (found.length > 0) return found;
+  } catch (err) {
+    console.error("Failed to fetch active categories", err);
+  }
+  return ["T-Shirts", "Shirts", "Track Pants & Lowers", "Jeans", "Sarees & Ethnic"];
+});
 
 // Newest first, one page at a time. The cursor is the id of the last product already
 // shown, so a product added while someone scrolls never causes repeats or gaps.
@@ -78,7 +87,8 @@ export async function listProductsPage(
 
 // The newest product, for the home page hero card.
 export const getLatestProduct = cache(async (): Promise<StoreProduct | null> => {
-  const { products } = await listProductsPage({limit:10});
+  const { products } = await listProductsPage({ limit: 10 });
+  if (products.length === 0) return null;
   const randomProduct = Math.floor(Math.random() * products.length);
   return products[randomProduct] ?? null;
 });
@@ -170,7 +180,7 @@ export type ListingResult = {
   page: number;
   totalPages: number;
   // How many products each category has for the current search and price range.
-  categoryCounts: Partial<Record<Category, number>>;
+  categoryCounts: Record<string, number>;
 };
 
 function orderFor(sort: ListingSort) {
@@ -206,10 +216,10 @@ export async function searchListing(p: ListingParams): Promise<ListingResult> {
           take: PAGE_SIZE,
         });
 
-  const categoryCounts: Partial<Record<Category, number>> = {};
+  const categoryCounts: Record<string, number> = {};
   for (const g of groups) {
-    if ((categories as readonly string[]).includes(g.category)) {
-      categoryCounts[g.category as Category] = g._count._all;
+    if (g.category) {
+      categoryCounts[g.category] = g._count._all;
     }
   }
 

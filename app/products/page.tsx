@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "All products",
-  description: "Browse garments, footwear, electronics and industrial parts at prices below MRP.",
+  description: "Browse trendy clothing, daily fashion, and ethnic wear at prices well below MRP.",
 };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;

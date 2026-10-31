@@ -56,14 +56,14 @@ export  async function SiteFooter() {
 
         {/* Shop */}
         <nav aria-label="Shop" className="space-y-3 text-sm">
-          <p className="font-semibold text-brand-foreground">Shop</p>
+          <p className="font-semibold text-brand-foreground">Shop Fashion</p>
           <ul className="space-y-2 text-xs sm:text-sm">
-            <li><Link className={link} href="/products">All products</Link></li>
-            {categories.map((c) => (
-              <li key={c}>
-                <Link className={link} href={`/products?category=${encodeURIComponent(c)}`}>{c}</Link>
-              </li>
-            ))}
+            <li><Link className={link} href="/products">All Collections</Link></li>
+            <li><Link className={link} href={`/products?category=${encodeURIComponent("T-Shirts")}`}>T-Shirts</Link></li>
+            <li><Link className={link} href={`/products?category=${encodeURIComponent("Shirts")}`}>Shirts</Link></li>
+            <li><Link className={link} href={`/products?category=${encodeURIComponent("Track Pants & Lowers")}`}>Track Pants & Lowers</Link></li>
+            <li><Link className={link} href={`/products?category=${encodeURIComponent("Jeans")}`}>Jeans</Link></li>
+            <li><Link className={link} href={`/products?category=${encodeURIComponent("Sarees & Ethnic")}`}>Sarees & Ethnic</Link></li>
             <li><Link className={link} href="/cart">Your cart</Link></li>
           </ul>
         </nav>

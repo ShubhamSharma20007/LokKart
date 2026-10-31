@@ -286,7 +286,7 @@ export async function updateProduct(_prev: FormState, fd: FormData): Promise<For
     stock: { label: "Stock", required: true, nonNegative: true },
     ...SHIPPING_RULES,
   });
-  if (!(categories as readonly string[]).includes(s.values.category)) s.errors.category ||= "Choose a category";
+  if (!s.values.category?.trim()) s.errors.category ||= "Choose or enter a category";
   if (Number(s.values.price) >= Number(s.values.mrp)) s.errors.price ||= "Price must be below MRP";
   for (const k of ["price", "mrp", "stock"]) {
     if (!s.errors[k] && !Number.isInteger(Number(s.values[k]))) s.errors[k] = "Enter a whole number";
