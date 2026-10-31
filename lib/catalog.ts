@@ -50,7 +50,51 @@ const keep = (rows: Row[]): StoreProduct[] => rows.map(toStoreProduct);
 
 export const HOME_PAGE_SIZE = 12;
 
-// Fetch all distinct categories currently active in the database
+export type CategorySectionData = {
+  category: string;
+  total: number;
+  products: StoreProduct[];
+};
+
+// Fetch products grouped by category for the landing page (only categories with >= 1 product)
+export const getCategorySections = cache(async (limitPerCategory = 4): Promise<CategorySectionData[]> => {
+  try {
+    const groups = await prisma.product.groupBy({
+      by: ["category"],
+      _count: { _all: true },
+      where: { stock: { gte: 0 } },
+      orderBy: { category: "asc" },
+    });
+
+    // Only categories that have at least 1 product
+    const active = groups.filter((g) => g.category && g._count._all > 0);
+    if (active.length === 0) return [];
+
+    const sections = await Promise.all(
+      active.map(async (g) => {
+        const rows = await prisma.product.findMany({
+          where: { category: g.category },
+          select,
+          orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+          take: limitPerCategory,
+        });
+
+        return {
+          category: g.category,
+          total: g._count._all,
+          products: keep(rows),
+        };
+      })
+    );
+
+    return sections;
+  } catch (err) {
+    console.error("Failed to fetch category sections", err);
+    return [];
+  }
+});
+
+// Fetch all distinct categories currently active in the database (only categories with products)
 export const getActiveCategories = cache(async (): Promise<string[]> => {
   try {
     const distinct = await prisma.product.findMany({
@@ -59,12 +103,11 @@ export const getActiveCategories = cache(async (): Promise<string[]> => {
       where: { stock: { gte: 0 } },
       orderBy: { category: "asc" },
     });
-    const found = distinct.map((d) => d.category.trim()).filter(Boolean);
-    if (found.length > 0) return found;
+    return distinct.map((d) => d.category.trim()).filter(Boolean);
   } catch (err) {
     console.error("Failed to fetch active categories", err);
+    return [];
   }
-  return ["T-Shirts", "Shirts", "Track Pants & Lowers", "Jeans", "Sarees & Ethnic"];
 });
 
 // Newest first, one page at a time. The cursor is the id of the last product already

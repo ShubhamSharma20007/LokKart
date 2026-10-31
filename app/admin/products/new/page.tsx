@@ -121,14 +121,12 @@ export default function AdminProductsPage() {
   }, []);
 
   const onSaved = useCallback(() => {
-    const wasEditing = !!editing;
     closeForm();
-    if (wasEditing || page === 1) {
-      reload();
-    } else {
+    if (page !== 1) {
       setPage(1);
     }
-  }, [editing, page, closeForm, reload]);
+    reload();
+  }, [closeForm, page, reload]);
 
   const confirmDelete = async () => {
     if (!deleting) return;
@@ -467,7 +465,7 @@ export default function AdminProductsPage() {
               This will permanently remove the product from your store and delete its photos from ImageKit. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDeleting(null)} disabled={deletePending}>
               Cancel
             </Button>

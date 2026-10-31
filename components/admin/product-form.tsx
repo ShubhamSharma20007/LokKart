@@ -171,12 +171,12 @@ export function ProductForm({
   );
 
   useEffect(() => {
-    if (!state.message || state === handled.current) return;
+    if (state === initialState || state === handled.current) return;
     handled.current = state;
     if (state.ok) {
-      toast.success(editing ? "Product updated" : "Product added");
+      toast.success(state.message || (editing ? "Product updated" : "Product added"));
       onSaved();
-    } else {
+    } else if (state.message) {
       toast.error(state.message);
     }
   }, [state, editing, onSaved]);

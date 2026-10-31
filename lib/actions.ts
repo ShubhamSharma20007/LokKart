@@ -1,4 +1,5 @@
 "use server";
+import { revalidatePath } from "next/cache";
 import { validate, type FormState } from "@/lib/forms";
 import { prisma } from "@/lib/prisma";
 import { deleteImageKitFile, requireAdmin,getUserFromToken } from "../lib/imagekit-server"
@@ -120,7 +121,10 @@ export async function createProduct(_prev: FormState, fd: FormData): Promise<For
       },
       select: { id: true },
     });
-    return { ...s, ok: true, ref: product.id };
+    revalidatePath("/admin/products/new");
+    revalidatePath("/");
+    revalidatePath("/products");
+    return { ...s, ok: true, ref: product.id, message: "Product added successfully" };
   } catch (err) {
     console.error("createProduct failed", err);
     // Don't leave orphaned uploads behind if the product was not saved.
@@ -165,6 +169,9 @@ export async function deleteProduct(idToken: string, productId: string): Promise
       await deleteImageKitFile(fid);
     }
 
+    revalidatePath("/admin/products/new");
+    revalidatePath("/");
+    revalidatePath("/products");
     return { ok: true };
   } catch (err) {
     console.error("deleteProduct failed", err);
@@ -378,5 +385,8 @@ export async function updateProduct(_prev: FormState, fd: FormData): Promise<For
     await deleteImageKitFile(fid);
   }
 
-  return { ...s, ok: true, ref: s.values.id };
+  revalidatePath("/admin/products/new");
+  revalidatePath("/");
+  revalidatePath("/products");
+  return { ...s, ok: true, ref: s.values.id, message: "Product updated successfully" };
 }
