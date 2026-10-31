@@ -201,7 +201,17 @@ export function verifyCashfreeWebhook(
   signature: string
 ): boolean {
   try {
-    const secret = process.env.CASHFREE_APP_SECRET_KEY!;
+    const secret = (
+      process.env.CASHFREE_APP_SECRET_KEY ||
+      process.env.CASHFREE_SECRET_KEY ||
+      process.env.CASHFREE_API_SECRET
+    )?.trim();
+
+    if (!secret) {
+      console.error("[Cashfree Webhook] Missing secret key in environment variables.");
+      return false;
+    }
+
     const signedPayload = timestamp + rawBody;
     const expectedSig = crypto
       .createHmac("sha256", secret)
@@ -211,9 +221,15 @@ export function verifyCashfreeWebhook(
     const expected = Buffer.from(expectedSig, "base64");
     const received = Buffer.from(signature, "base64");
 
-    if (expected.length !== received.length) return false;
+    if (expected.length !== received.length) {
+      console.warn(
+        `[Cashfree Webhook] Signature length mismatch. expected=${expected.length}, received=${received.length}`
+      );
+      return false;
+    }
     return crypto.timingSafeEqual(expected, received);
-  } catch {
+  } catch (err) {
+    console.error("[Cashfree Webhook] Error verifying signature:", err);
     return false;
   }
 }
