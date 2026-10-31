@@ -47,6 +47,71 @@ export type MyOrdersResult =
   | { ok: true; orders: MyOrder[] }
   | { ok: false; message: string };
 
+export type SavedAddress = {
+  id: string;
+  tag: "Home" | "Work" | "Other";
+  name: string;
+  phone: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  isDefault?: boolean;
+};
+
+// Retrieve unique delivery addresses from user's past orders
+export async function getRecentAddresses(token: string): Promise<SavedAddress[]> {
+  try {
+    const decoded = await verifyFirebaseToken(token).catch(() => null);
+    if (!decoded || !decoded.email) return [];
+
+    const user = await prisma.user.findUnique({ where: { email: decoded.email } });
+    if (!user) return [];
+
+    const orders = await prisma.order.findMany({
+      where: { userId: user.id },
+      select: {
+        name: true,
+        phone: true,
+        address: true,
+        city: true,
+        state: true,
+        pincode: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
+
+    const seen = new Set<string>();
+    const list: SavedAddress[] = [];
+
+    for (const ord of orders) {
+      if (!ord.address || !ord.pincode) continue;
+      const key = `${ord.address.trim().toLowerCase()}_${ord.pincode.trim()}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        list.push({
+          id: `order-addr-${list.length + 1}`,
+          tag: list.length === 0 ? "Home" : "Other",
+          name: ord.name,
+          phone: ord.phone,
+          address: ord.address,
+          city: ord.city,
+          state: ord.state,
+          pincode: ord.pincode,
+          isDefault: list.length === 0,
+        });
+      }
+    }
+
+    return list;
+  } catch (err) {
+    console.error("getRecentAddresses failed", err);
+    return [];
+  }
+}
+
 
 /**
  * placeOrder — COD ONLY.

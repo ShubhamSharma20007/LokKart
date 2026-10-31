@@ -3,8 +3,26 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { AlertCircle, Banknote, Check, ChevronDown, MapPin, Package, Search, ShieldAlert, ShieldCheck, Smartphone, Wallet } from "lucide-react";
+import {
+  AlertCircle,
+  Banknote,
+  Check,
+  ChevronDown,
+  Home,
+  Briefcase,
+  MapPin,
+  Package,
+  Pencil,
+  Plus,
+  Search,
+  ShieldAlert,
+  ShieldCheck,
+  Smartphone,
+  Trash2,
+  Wallet,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -25,13 +43,13 @@ import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/components/auth-provider";
 import { auth } from "@/hooks/useFirebaseAuth";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
-import { clearCart } from "@/lib/store/slices/cartSlice";import { useCodEstimate } from "@/lib/use-cod-estimate";
-import { placeOrder } from "@/lib/order-actions";
-import { formatINR } from "@/lib/products";import { useMounted } from "@/lib/use-mounted";
+import { clearCart } from "@/lib/store/slices/cartSlice";
+import { useCodEstimate } from "@/lib/use-cod-estimate";
+import { getRecentAddresses, placeOrder, type SavedAddress } from "@/lib/order-actions";
+import { formatINR } from "@/lib/products";
+import { useMounted } from "@/lib/use-mounted";
 import { usePincodeLookup } from "@/lib/use-pincode-lookup";
 import { cn } from "@/lib/utils";
-
-
 
 const STATES = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat",
@@ -158,7 +176,6 @@ export function CheckoutForm() {
   const hydrated = useAppSelector((s) => s.cart.hydrated);
   const [upiLoading, setUpiLoading] = useState(false);
 
- 
   const { user, signingIn, signIn } = useAuth();
   const [form, setForm] = useState({
     name: "",
@@ -168,6 +185,14 @@ export function CheckoutForm() {
     state: "",
     pincode: "",
   });
+
+  // Multiple Saved Addresses State
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [addressTag, setAddressTag] = useState<"Home" | "Work" | "Other">("Home");
+  const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
+
   const [payment, setPayment] = useState<Payment>("UPI");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | undefined>();
@@ -176,7 +201,6 @@ export function CheckoutForm() {
   const subtotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
   const mrpTotal = items.reduce((sum, i) => sum + i.mrp * i.qty, 0);
 
-
   const cartLines = items.map((i) => ({ id: i.id, qty: i.qty }));
   const cod = useCodEstimate(form.pincode, cartLines, payment === "COD");
   const codCharges = payment === "COD" && cod.status === "ok" ? cod.data.total : 0;
@@ -184,6 +208,211 @@ export function CheckoutForm() {
   const codBlocked = payment === "COD" && cod.status !== "ok";
 
   const lookup = usePincodeLookup(form.pincode);
+
+  // 1. Load addresses from localStorage on initial render
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("bachatnix_saved_addresses");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setSavedAddresses(parsed);
+          const defaultAddr = parsed.find((a: SavedAddress) => a.isDefault) || parsed[0];
+          if (defaultAddr) {
+            setSelectedAddressId(defaultAddr.id);
+            setForm({
+              name: defaultAddr.name || "",
+              phone: defaultAddr.phone || "",
+              address: defaultAddr.address || "",
+              city: defaultAddr.city || "",
+              state: defaultAddr.state || "",
+              pincode: defaultAddr.pincode || "",
+            });
+            setShowAddressForm(false);
+            return;
+          }
+        }
+      }
+    } catch {}
+    setShowAddressForm(true);
+  }, []);
+
+  // 2. When user is authenticated, fetch past order addresses from DB and merge
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+
+    async function loadPastAddresses() {
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) return;
+        const serverAddrs = await getRecentAddresses(token);
+        if (cancelled || serverAddrs.length === 0) return;
+
+        setSavedAddresses((prev) => {
+          const merged = [...prev];
+          for (const s of serverAddrs) {
+            const exists = merged.some(
+              (m) =>
+                m.pincode === s.pincode &&
+                m.address.trim().toLowerCase() === s.address.trim().toLowerCase()
+            );
+            if (!exists) {
+              merged.push(s);
+            }
+          }
+          try {
+            localStorage.setItem("bachatnix_saved_addresses", JSON.stringify(merged));
+          } catch {}
+
+          if (merged.length > 0 && !selectedAddressId) {
+            const chosen = merged[0];
+            setSelectedAddressId(chosen.id);
+            setForm({
+              name: chosen.name,
+              phone: chosen.phone,
+              address: chosen.address,
+              city: chosen.city,
+              state: chosen.state,
+              pincode: chosen.pincode,
+            });
+            setShowAddressForm(false);
+          }
+
+          return merged;
+        });
+      } catch (err) {
+        console.error("Failed to load past addresses", err);
+      }
+    }
+
+    void loadPastAddresses();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, selectedAddressId]);
+
+  // Select an address from the saved list
+  const selectAddress = (addr: SavedAddress) => {
+    setSelectedAddressId(addr.id);
+    setForm({
+      name: addr.name,
+      phone: addr.phone,
+      address: addr.address,
+      city: addr.city,
+      state: addr.state,
+      pincode: addr.pincode,
+    });
+    setErrors({});
+    setShowAddressForm(false);
+    setEditingAddressId(null);
+  };
+
+  // Save (add new or update) address
+  const handleSaveAddress = (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    if (!validate()) return false;
+
+    const newId = editingAddressId || `addr_${Date.now()}`;
+    const newAddr: SavedAddress = {
+      id: newId,
+      tag: addressTag,
+      name: form.name.trim(),
+      phone: form.phone.trim(),
+      address: form.address.trim(),
+      city: form.city.trim(),
+      state: form.state.trim(),
+      pincode: form.pincode.trim(),
+      isDefault: savedAddresses.length === 0,
+    };
+
+    setSavedAddresses((prev) => {
+      const updated = editingAddressId
+        ? prev.map((a) => (a.id === editingAddressId ? newAddr : a))
+        : [newAddr, ...prev];
+      try {
+        localStorage.setItem("bachatnix_saved_addresses", JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    setSelectedAddressId(newId);
+    setShowAddressForm(false);
+    setEditingAddressId(null);
+    toast.success(editingAddressId ? "Address updated" : "Address saved");
+    return true;
+  };
+
+  // Delete saved address
+  const handleDeleteAddress = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSavedAddresses((prev) => {
+      const updated = prev.filter((a) => a.id !== id);
+      try {
+        localStorage.setItem("bachatnix_saved_addresses", JSON.stringify(updated));
+      } catch {}
+      if (selectedAddressId === id) {
+        if (updated.length > 0) {
+          selectAddress(updated[0]);
+        } else {
+          setSelectedAddressId(null);
+          setShowAddressForm(true);
+        }
+      }
+      return updated;
+    });
+    toast.success("Address removed");
+  };
+
+  // Edit saved address
+  const handleEditAddress = (addr: SavedAddress, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingAddressId(addr.id);
+    setAddressTag(addr.tag || "Home");
+    setForm({
+      name: addr.name,
+      phone: addr.phone,
+      address: addr.address,
+      city: addr.city,
+      state: addr.state,
+      pincode: addr.pincode,
+    });
+    setShowAddressForm(true);
+  };
+
+  // Auto-save current address on successful order
+  const autoSaveCurrentAddress = () => {
+    if (form.address && form.pincode && form.name) {
+      setSavedAddresses((prev) => {
+        const exists = prev.some(
+          (a) =>
+            a.pincode === form.pincode &&
+            a.address.trim().toLowerCase() === form.address.trim().toLowerCase()
+        );
+        if (!exists) {
+          const updated = [
+            {
+              id: `addr_${Date.now()}`,
+              tag: addressTag || "Home",
+              name: form.name.trim(),
+              phone: form.phone.trim(),
+              address: form.address.trim(),
+              city: form.city.trim(),
+              state: form.state.trim(),
+              pincode: form.pincode.trim(),
+              isDefault: prev.length === 0,
+            },
+            ...prev,
+          ];
+          try {
+            localStorage.setItem("bachatnix_saved_addresses", JSON.stringify(updated));
+          } catch {}
+          return updated;
+        }
+        return prev;
+      });
+    }
+  };
 
   const handlePincodeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, "").slice(0, 6);
@@ -228,11 +457,9 @@ export function CheckoutForm() {
     if (form.city.trim().length < 2) e.city = "Enter your city";
     if (form.state.trim().length < 2) e.state = "Select your state";
     if (!/^[1-9]\d{5}$/.test(form.pincode)) e.pincode = "Enter a valid 6-digit pincode";
-    // Note: UPI validation removed — Cashfree handles payment
     setErrors(e);
     return Object.keys(e).length === 0;
   };
-
 
   const handleCODSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -259,6 +486,7 @@ export function CheckoutForm() {
         return;
       }
 
+      autoSaveCurrentAddress();
       dispatch(clearCart());
       toast.success("Order placed!");
       router.push(`/orders?placed=${res.orderId}`);
@@ -267,16 +495,7 @@ export function CheckoutForm() {
 
   const handleUPISubmit = async () => {
     setFormError(undefined);
-    // Validate address only (no UTR needed)
-    const e: Record<string, string> = {};
-    if (form.name.trim().length < 2) e.name = "Enter your full name";
-    if (!/^[6-9]\d{9}$/.test(form.phone)) e.phone = "Enter a valid 10-digit mobile number";
-    if (form.address.trim().length < 10) e.address = "Enter your full address";
-    if (form.city.trim().length < 2) e.city = "Enter your city";
-    if (form.state.trim().length < 2) e.state = "Select your state";
-    if (!/^[1-9]\d{5}$/.test(form.pincode)) e.pincode = "Enter a valid 6-digit pincode";
-    setErrors(e);
-    if (Object.keys(e).length > 0) return;
+    if (!validate()) return;
 
     const token = await auth.currentUser?.getIdToken();
     if (!token) {
@@ -309,6 +528,8 @@ export function CheckoutForm() {
         setFormError(data.message ?? "Could not initiate payment. Please try again.");
         return;
       }
+
+      autoSaveCurrentAddress();
 
       // 2. Load Cashfree SDK dynamically and open checkout
       const { load } = await import("@cashfreepayments/cashfree-js");
@@ -346,27 +567,57 @@ export function CheckoutForm() {
     }
   };
 
-    if (!mounted || !hydrated) return <CheckoutSkeleton />;
+  if (!mounted || !hydrated) return <CheckoutSkeleton />;
   if (items.length === 0) return <EmptyCart />;
 
   return (
     <form onSubmit={submit} noValidate className="mt-6 grid gap-8 lg:grid-cols-[1.5fr_1fr]">
       <div className="space-y-6">
-        {/* Address Card */}
-        <Card className="rounded-2xl border shadow-xs">
-          <CardHeader className="space-y-1 pb-4">
-            <div className="flex items-center gap-2.5">
-              <span className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary">
-                <MapPin className="size-4" aria-hidden />
-              </span>
-              <div>
-                <CardTitle className="text-base font-semibold">Delivery address</CardTitle>
-                <CardDescription className="text-xs">Where should we deliver your order?</CardDescription>
+        {/* Delivery Address Card with Multi-Address Selector */}
+        <Card className="rounded-2xl border shadow-xs overflow-hidden">
+          <CardHeader className="space-y-1 pb-4 bg-muted/5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <span className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary">
+                  <MapPin className="size-4" aria-hidden />
+                </span>
+                <div>
+                  <CardTitle className="text-base font-semibold">Delivery address</CardTitle>
+                  <CardDescription className="text-xs">
+                    {savedAddresses.length > 0 && !showAddressForm
+                      ? "Select where we should deliver your order"
+                      : "Enter complete delivery details"}
+                  </CardDescription>
+                </div>
               </div>
+
+              {savedAddresses.length > 0 && !showAddressForm && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5 text-xs font-semibold hover:bg-muted"
+                  onClick={() => {
+                    setEditingAddressId(null);
+                    setAddressTag("Home");
+                    setForm({
+                      name: user?.name || "",
+                      phone: user?.phone || "",
+                      address: "",
+                      city: "",
+                      state: "",
+                      pincode: "",
+                    });
+                    setShowAddressForm(true);
+                  }}
+                >
+                  <Plus className="size-3.5" /> Add new address
+                </Button>
+              )}
             </div>
           </CardHeader>
 
-          <CardContent className="space-y-4 pt-0">
+          <CardContent className="space-y-4 pt-4">
             {formError && (
               <Alert variant="destructive" className="py-2.5">
                 <AlertCircle className="size-4" />
@@ -374,169 +625,352 @@ export function CheckoutForm() {
               </Alert>
             )}
 
-            {/* Full Name & Mobile Number */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="name" className="text-xs font-medium">Full name</Label>
-                <Input
-                  id="name"
-                  value={form.name}
-                  onChange={set("name")}
-                  aria-invalid={!!errors.name}
-                  autoComplete="name"
-                  placeholder="Shubham Sharma"
-                  className={inputClass}
-                />
-                {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
-              </div>
+            {/* View 1: Saved Addresses Selector (Meesho / Amazon Style) */}
+            {savedAddresses.length > 0 && !showAddressForm ? (
+              <div className="space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {savedAddresses.map((addr) => {
+                    const isSelected = selectedAddressId === addr.id;
+                    return (
+                      <div
+                        key={addr.id}
+                        onClick={() => selectAddress(addr)}
+                        className={cn(
+                          "relative flex flex-col justify-between rounded-xl border p-4 cursor-pointer transition-all",
+                          isSelected
+                            ? "border-primary bg-primary/5 ring-2 ring-primary/20 shadow-xs"
+                            : "border-border hover:border-primary/50 hover:bg-muted/30"
+                        )}
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={cn(
+                                  "grid size-4 place-items-center rounded-full border text-[10px] transition-colors",
+                                  isSelected
+                                    ? "border-primary bg-primary text-primary-foreground"
+                                    : "border-muted-foreground/40"
+                                )}
+                              >
+                                {isSelected && <Check className="size-2.5 stroke-[3]" />}
+                              </span>
+                              <Badge
+                                variant={isSelected ? "default" : "secondary"}
+                                className="h-5 gap-1 px-2 text-[10px] font-bold uppercase tracking-wider"
+                              >
+                                {addr.tag === "Home" ? (
+                                  <Home className="size-3" />
+                                ) : addr.tag === "Work" ? (
+                                  <Briefcase className="size-3" />
+                                ) : null}
+                                {addr.tag || "Home"}
+                              </Badge>
+                            </div>
+                            {addr.isDefault && (
+                              <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-medium text-muted-foreground">
+                                Default
+                              </Badge>
+                            )}
+                          </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="phone" className="text-xs font-medium">Mobile number</Label>
-                <div
-                  className={cn(
-                    "flex h-10 w-full items-center overflow-hidden rounded-lg border border-input bg-transparent text-sm transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50",
-                    errors.phone && "border-destructive ring-destructive/20",
-                  )}
-                >
-                  <span className="flex h-full items-center border-r border-input bg-muted/40 px-3 font-medium text-muted-foreground select-none">
-                    +91
-                  </span>
-                  <input
-                    id="phone"
-                    type="tel"
-                    value={form.phone}
-                    onChange={set("phone")}
-                    inputMode="numeric"
-                    maxLength={10}
-                    aria-invalid={!!errors.phone}
-                    autoComplete="tel"
-                    placeholder="10-digit number"
-                    className="h-full w-full bg-transparent px-3 outline-none placeholder:text-muted-foreground"
-                  />
+                          <div className="pt-0.5">
+                            <p className="text-sm font-bold text-foreground">{addr.name}</p>
+                            <p className="text-xs font-medium text-muted-foreground mt-0.5">
+                              +91 {addr.phone}
+                            </p>
+                          </div>
+
+                          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                            {addr.address}, {addr.city}, {addr.state} -{" "}
+                            <span className="font-semibold text-foreground font-mono">
+                              {addr.pincode}
+                            </span>
+                          </p>
+                        </div>
+
+                        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-2.5">
+                          {isSelected ? (
+                            <Badge
+                              variant="secondary"
+                              className="h-6 gap-1 border border-primary/30 bg-primary/10 px-2 text-[11px] font-semibold text-primary"
+                            >
+                              <Check className="size-3 stroke-[2.5]" /> Delivering here
+                            </Badge>
+                          ) : (
+                            <span className="text-[11px] font-medium text-muted-foreground">
+                              Click card to select
+                            </span>
+                          )}
+
+                          <div className="flex items-center gap-1.5">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="xs"
+                              className="h-6 gap-1 px-2 text-[11px] font-medium bg-background hover:bg-muted text-foreground shadow-2xs"
+                              onClick={(e) => handleEditAddress(addr, e)}
+                            >
+                              <Pencil className="size-3 text-muted-foreground" />
+                              Edit
+                            </Button>
+                            {savedAddresses.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="xs"
+                                className="h-6 gap-1 px-2 text-[11px] font-medium text-destructive border-destructive/25 bg-background shadow-2xs hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40"
+                                onClick={(e) => handleDeleteAddress(addr.id, e)}
+                              >
+                                <Trash2 className="size-3" />
+                                Remove
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
               </div>
-            </div>
+            ) : (
+              /* View 2: Add / Edit Address Form */
+              <div className="space-y-4">
+                {savedAddresses.length > 0 && (
+                  <div className="flex items-center justify-between pb-2 border-b">
+                    <p className="text-xs font-semibold text-foreground">
+                      {editingAddressId ? "Edit Delivery Address" : "Add New Delivery Address"}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                      onClick={() => {
+                        setShowAddressForm(false);
+                        setEditingAddressId(null);
+                      }}
+                    >
+                      ← Back to saved addresses
+                    </Button>
+                  </div>
+                )}
 
-            {/* Row 2: Pincode, City, State */}
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="pincode" className="text-xs font-medium">Pincode</Label>
-                  {lookup.status === "found" && (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-                      <Check className="size-3" /> Auto-filled
-                    </span>
-                  )}
-                  {lookup.status === "loading" && (
-                    <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                      <Spinner className="size-3" /> Checking...
-                    </span>
-                  )}
+                {/* Address Type Tag (Home / Work / Other) */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Address Type</Label>
+                  <div className="flex gap-2">
+                    {(["Home", "Work", "Other"] as const).map((tag) => (
+                      <Button
+                        key={tag}
+                        type="button"
+                        size="sm"
+                        variant={addressTag === tag ? "default" : "outline"}
+                        onClick={() => setAddressTag(tag)}
+                        className="h-8 gap-1.5 text-xs font-medium"
+                      >
+                        {tag === "Home" ? (
+                          <Home className="size-3.5" />
+                        ) : tag === "Work" ? (
+                          <Briefcase className="size-3.5" />
+                        ) : null}
+                        {tag}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
-                <div className="relative">
-                  <Input
-                    id="pincode"
-                    value={form.pincode}
-                    onChange={handlePincodeChange}
-                    inputMode="numeric"
-                    maxLength={6}
-                    aria-invalid={!!errors.pincode}
-                    autoComplete="postal-code"
-                    placeholder="6-digit PIN"
-                    className={cn(inputClass, "pr-8")}
-                  />
-                  {lookup.status === "loading" && (
-                    <span className="absolute top-1/2 right-2.5 -translate-y-1/2 text-muted-foreground">
-                      <Spinner className="size-4" />
-                    </span>
-                  )}
-                  {lookup.status === "found" && (
-                    <span className="absolute top-1/2 right-2.5 -translate-y-1/2 text-emerald-500">
-                      <Check className="size-4" />
-                    </span>
-                  )}
+
+                {/* Full Name & Mobile Number */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="name" className="text-xs font-medium">Full name</Label>
+                    <Input
+                      id="name"
+                      value={form.name}
+                      onChange={set("name")}
+                      aria-invalid={!!errors.name}
+                      autoComplete="name"
+                      placeholder="e.g. Rahul Sharma"
+                      className={inputClass}
+                    />
+                    {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="phone" className="text-xs font-medium">Mobile number</Label>
+                    <div
+                      className={cn(
+                        "flex h-10 w-full items-center overflow-hidden rounded-lg border border-input bg-transparent text-sm transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50",
+                        errors.phone && "border-destructive ring-destructive/20",
+                      )}
+                    >
+                      <span className="flex h-full items-center border-r border-input bg-muted/40 px-3 font-medium text-muted-foreground select-none">
+                        +91
+                      </span>
+                      <input
+                        id="phone"
+                        type="tel"
+                        value={form.phone}
+                        onChange={set("phone")}
+                        inputMode="numeric"
+                        maxLength={10}
+                        aria-invalid={!!errors.phone}
+                        autoComplete="tel"
+                        placeholder="10-digit number"
+                        className="h-full w-full bg-transparent px-3 outline-none placeholder:text-muted-foreground"
+                      />
+                    </div>
+                    {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
+                  </div>
                 </div>
-                {errors.pincode ? (
-                  <p className="text-xs text-destructive">{errors.pincode}</p>
-                ) : lookup.status === "notfound" ? (
-                  <p className="text-[11px] text-amber-600 dark:text-amber-400">Unverified PIN, fill manually</p>
-                ) : null}
-              </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="city" className="text-xs font-medium">City / District</Label>
-                <Input
-                  id="city"
-                  value={form.city}
-                  onChange={set("city")}
-                  aria-invalid={!!errors.city}
-                  autoComplete="address-level2"
-                  placeholder="e.g. Alwar"
-                  className={inputClass}
-                />
-                {errors.city && <p className="text-xs text-destructive">{errors.city}</p>}
-              </div>
+                {/* Pincode, City, State */}
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="pincode" className="text-xs font-medium">Pincode</Label>
+                      {lookup.status === "found" && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                          <Check className="size-3" /> Auto-filled
+                        </span>
+                      )}
+                      {lookup.status === "loading" && (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <Spinner className="size-3" /> Checking...
+                        </span>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <Input
+                        id="pincode"
+                        value={form.pincode}
+                        onChange={handlePincodeChange}
+                        inputMode="numeric"
+                        maxLength={6}
+                        aria-invalid={!!errors.pincode}
+                        autoComplete="postal-code"
+                        placeholder="6-digit PIN"
+                        className={cn(inputClass, "pr-8")}
+                      />
+                      {lookup.status === "loading" && (
+                        <span className="absolute top-1/2 right-2.5 -translate-y-1/2 text-muted-foreground">
+                          <Spinner className="size-4" />
+                        </span>
+                      )}
+                      {lookup.status === "found" && (
+                        <span className="absolute top-1/2 right-2.5 -translate-y-1/2 text-emerald-500">
+                          <Check className="size-4" />
+                        </span>
+                      )}
+                    </div>
+                    {errors.pincode ? (
+                      <p className="text-xs text-destructive">{errors.pincode}</p>
+                    ) : lookup.status === "notfound" ? (
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400">Unverified PIN, fill manually</p>
+                    ) : null}
+                  </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="state" className="text-xs font-medium">State</Label>
-                <Select
-                  items={stateItems}
-                  value={form.state || null}
-                  onValueChange={(v) => {
-                    setForm((f) => ({ ...f, state: v ?? "" }));
-                    setErrors((er) => ({ ...er, state: "" }));
+                  <div className="space-y-1.5">
+                    <Label htmlFor="city" className="text-xs font-medium">City / District</Label>
+                    <Input
+                      id="city"
+                      value={form.city}
+                      onChange={set("city")}
+                      aria-invalid={!!errors.city}
+                      autoComplete="address-level2"
+                      placeholder="e.g. Alwar"
+                      className={inputClass}
+                    />
+                    {errors.city && <p className="text-xs text-destructive">{errors.city}</p>}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="state" className="text-xs font-medium">State</Label>
+                    <Select
+                      items={stateItems}
+                      value={form.state || null}
+                      onValueChange={(v) => {
+                        setForm((f) => ({ ...f, state: v ?? "" }));
+                        setErrors((er) => ({ ...er, state: "" }));
+                      }}
+                    >
+                      <SelectTrigger
+                        id="state"
+                        className={cn(inputClass, "w-full justify-between")}
+                        aria-invalid={!!errors.state}
+                      >
+                        <SelectValue placeholder="Select state" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-60">
+                        <SelectGroup>
+                          {stateOptions.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {s}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    {errors.state && <p className="text-xs text-destructive">{errors.state}</p>}
+                  </div>
+                </div>
+
+                {/* Pincode Finder Search Dropdown */}
+                <PincodeFinder
+                  onPick={(hit) => {
+                    const resolvedState = normalizeState(hit.state);
+                    setForm((f) => ({
+                      ...f,
+                      pincode: hit.pincode,
+                      city: hit.district || f.city,
+                      state: resolvedState || hit.state || f.state,
+                    }));
+                    setErrors((er) => ({ ...er, pincode: "", city: "", state: "" }));
                   }}
-                >
-                  <SelectTrigger
-                    id="state"
-                    className={cn(inputClass, "w-full justify-between")}
-                    aria-invalid={!!errors.state}
+                />
+
+                {/* Full Address */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="address" className="text-xs font-medium">Full address</Label>
+                  <Textarea
+                    id="address"
+                    value={form.address}
+                    onChange={set("address")}
+                    aria-invalid={!!errors.address}
+                    autoComplete="street-address"
+                    placeholder="House / Flat no., Building name, Street, Landmark"
+                    className="min-h-20 resize-y text-sm"
+                  />
+                  {errors.address && <p className="text-xs text-destructive">{errors.address}</p>}
+                </div>
+
+                {/* Save Address Button */}
+                <div className="flex items-center gap-2 pt-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-9 px-4 text-xs font-semibold"
+                    onClick={() => handleSaveAddress()}
                   >
-                    <SelectValue placeholder="Select state" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-60">
-                    <SelectGroup>
-                      {stateOptions.map((s) => (
-                        <SelectItem key={s} value={s}>
-                          {s}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                {errors.state && <p className="text-xs text-destructive">{errors.state}</p>}
+                    Save &amp; Deliver Here
+                  </Button>
+                  {savedAddresses.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9 text-xs"
+                      onClick={() => {
+                        setShowAddressForm(false);
+                        setEditingAddressId(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
-
-            {/* Pincode Finder Search Dropdown */}
-            <PincodeFinder
-              onPick={(hit) => {
-                const resolvedState = normalizeState(hit.state);
-                setForm((f) => ({
-                  ...f,
-                  pincode: hit.pincode,
-                  city: hit.district || f.city,
-                  state: resolvedState || hit.state || f.state,
-                }));
-                setErrors((er) => ({ ...er, pincode: "", city: "", state: "" }));
-              }}
-            />
-
-            {/* Row 3: Full Address */}
-            <div className="space-y-1.5">
-              <Label htmlFor="address" className="text-xs font-medium">Full address</Label>
-              <Textarea
-                id="address"
-                value={form.address}
-                onChange={set("address")}
-                aria-invalid={!!errors.address}
-                autoComplete="street-address"
-                placeholder="House no., building name, street, locality, landmark"
-                className="min-h-20 resize-y text-sm"
-              />
-              {errors.address && <p className="text-xs text-destructive">{errors.address}</p>}
-            </div>
+            )}
           </CardContent>
         </Card>
 
@@ -573,13 +1007,13 @@ export function CheckoutForm() {
                 <div className="flex-1 space-y-1">
                   <div className="flex items-center gap-2">
                     <Smartphone className="size-4 text-primary" />
-                    <span className="font-semibold text-sm">UPI</span>
+                    <span className="font-semibold text-sm">UPI / Cards / NetBanking</span>
                     <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
                       ₹0 COD Fee
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground font-normal leading-relaxed">
-                    Pay instantly via GPay / PhonePe / Paytm. Zero COD fee.
+                    Pay instantly via GPay, PhonePe, Paytm, Cards or NetBanking. Zero COD fee.
                   </p>
                 </div>
               </Label>
@@ -603,7 +1037,7 @@ export function CheckoutForm() {
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground font-normal leading-relaxed">
-                    Free shipping on all orders. Nominal COD handling fee applies.
+                    Free shipping on all orders. Nominal courier COD handling fee applies.
                   </p>
                 </div>
               </Label>
@@ -679,7 +1113,7 @@ export function CheckoutForm() {
                   )}
                 </div>
               )}
-             {payment === "UPI" && (
+              {payment === "UPI" && (
                 <div className="space-y-2">
                   <p className="flex justify-between">
                     <span>Shipping</span>
@@ -696,7 +1130,7 @@ export function CheckoutForm() {
                       </div>
                       <p className="text-sm font-medium">Secured by Cashfree Payments</p>
                       <p className="text-xs text-muted-foreground">
-                        Pay via GPay, PhonePe, Paytm, UPI or any UPI-enabled app.
+                        Pay via GPay, PhonePe, Paytm, Cards, UPI or NetBanking.
                         Amount: <strong>{formatINR(subtotal)}</strong>
                       </p>
                     </div>
@@ -757,4 +1191,3 @@ export function CheckoutForm() {
     </form>
   );
 }
-
