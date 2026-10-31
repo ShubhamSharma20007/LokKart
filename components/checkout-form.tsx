@@ -261,26 +261,22 @@ export function CheckoutForm() {
               merged.push(s);
             }
           }
-          try {
-            localStorage.setItem("bachatnix_saved_addresses", JSON.stringify(merged));
-          } catch {}
-
-          if (merged.length > 0 && !selectedAddressId) {
-            const chosen = merged[0];
-            setSelectedAddressId(chosen.id);
-            setForm({
-              name: chosen.name,
-              phone: chosen.phone,
-              address: chosen.address,
-              city: chosen.city,
-              state: chosen.state,
-              pincode: chosen.pincode,
-            });
-            setShowAddressForm(false);
-          }
-
           return merged;
         });
+
+        if (!selectedAddressId && serverAddrs[0]) {
+          const chosen = serverAddrs[0];
+          setSelectedAddressId(chosen.id);
+          setForm({
+            name: chosen.name,
+            phone: chosen.phone,
+            address: chosen.address,
+            city: chosen.city,
+            state: chosen.state,
+            pincode: chosen.pincode,
+          });
+          setShowAddressForm(false);
+        }
       } catch (err) {
         console.error("Failed to load past addresses", err);
       }
@@ -291,6 +287,15 @@ export function CheckoutForm() {
       cancelled = true;
     };
   }, [user, selectedAddressId]);
+
+  // Keep localStorage synced when saved addresses change
+  useEffect(() => {
+    if (savedAddresses.length > 0) {
+      try {
+        localStorage.setItem("bachatnix_saved_addresses", JSON.stringify(savedAddresses));
+      } catch {}
+    }
+  }, [savedAddresses]);
 
   // Select an address from the saved list
   const selectAddress = (addr: SavedAddress) => {
@@ -313,7 +318,7 @@ export function CheckoutForm() {
     if (e) e.preventDefault();
     if (!validate()) return false;
 
-    const newId = editingAddressId || `addr_${Date.now()}`;
+    const newId = editingAddressId || `addr_${savedAddresses.length + 1}_${form.pincode}`;
     const newAddr: SavedAddress = {
       id: newId,
       tag: addressTag,
@@ -327,13 +332,9 @@ export function CheckoutForm() {
     };
 
     setSavedAddresses((prev) => {
-      const updated = editingAddressId
+      return editingAddressId
         ? prev.map((a) => (a.id === editingAddressId ? newAddr : a))
         : [newAddr, ...prev];
-      try {
-        localStorage.setItem("bachatnix_saved_addresses", JSON.stringify(updated));
-      } catch {}
-      return updated;
     });
 
     setSelectedAddressId(newId);
@@ -346,21 +347,20 @@ export function CheckoutForm() {
   // Delete saved address
   const handleDeleteAddress = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setSavedAddresses((prev) => {
-      const updated = prev.filter((a) => a.id !== id);
-      try {
-        localStorage.setItem("bachatnix_saved_addresses", JSON.stringify(updated));
-      } catch {}
-      if (selectedAddressId === id) {
-        if (updated.length > 0) {
-          selectAddress(updated[0]);
-        } else {
-          setSelectedAddressId(null);
-          setShowAddressForm(true);
-        }
+    const updated = savedAddresses.filter((a) => a.id !== id);
+    setSavedAddresses(updated);
+    try {
+      localStorage.setItem("bachatnix_saved_addresses", JSON.stringify(updated));
+    } catch {}
+
+    if (selectedAddressId === id) {
+      if (updated.length > 0) {
+        selectAddress(updated[0]);
+      } else {
+        setSelectedAddressId(null);
+        setShowAddressForm(true);
       }
-      return updated;
-    });
+    }
     toast.success("Address removed");
   };
 
@@ -382,36 +382,30 @@ export function CheckoutForm() {
 
   // Auto-save current address on successful order
   const autoSaveCurrentAddress = () => {
-    if (form.address && form.pincode && form.name) {
-      setSavedAddresses((prev) => {
-        const exists = prev.some(
-          (a) =>
-            a.pincode === form.pincode &&
-            a.address.trim().toLowerCase() === form.address.trim().toLowerCase()
-        );
-        if (!exists) {
-          const updated = [
-            {
-              id: `addr_${Date.now()}`,
-              tag: addressTag || "Home",
-              name: form.name.trim(),
-              phone: form.phone.trim(),
-              address: form.address.trim(),
-              city: form.city.trim(),
-              state: form.state.trim(),
-              pincode: form.pincode.trim(),
-              isDefault: prev.length === 0,
-            },
-            ...prev,
-          ];
-          try {
-            localStorage.setItem("bachatnix_saved_addresses", JSON.stringify(updated));
-          } catch {}
-          return updated;
-        }
-        return prev;
-      });
-    }
+    if (!form.address || !form.pincode || !form.name) return;
+
+    setSavedAddresses((prev) => {
+      const exists = prev.some(
+        (a) =>
+          a.pincode === form.pincode &&
+          a.address.trim().toLowerCase() === form.address.trim().toLowerCase()
+      );
+      if (exists) return prev;
+
+      const newId = `addr_${prev.length + 1}_${form.pincode}`;
+      const newAddr: SavedAddress = {
+        id: newId,
+        tag: addressTag || "Home",
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        address: form.address.trim(),
+        city: form.city.trim(),
+        state: form.state.trim(),
+        pincode: form.pincode.trim(),
+        isDefault: prev.length === 0,
+      };
+      return [newAddr, ...prev];
+    });
   };
 
   const handlePincodeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -602,7 +596,7 @@ export function CheckoutForm() {
                     setAddressTag("Home");
                     setForm({
                       name: user?.name || "",
-                      phone: user?.phone || "",
+                      phone: "",
                       address: "",
                       city: "",
                       state: "",
