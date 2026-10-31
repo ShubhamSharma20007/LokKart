@@ -72,7 +72,7 @@ export function InfiniteListing({
           <ProductCard key={p.id} product={p} />
         ))}
         {loading &&
-          [0, 1, 2].map((i) => <div key={`loading-${i}`} className="h-80 animate-pulse rounded-xl bg-muted" aria-hidden />)}
+          [0, 1, 2, 3].map((i) => <div key={`loading-${i}`} className="h-64 animate-pulse rounded-2xl bg-muted" aria-hidden />)}
       </div>
 
       {hasMore && <div ref={sentinel} className="h-px" aria-hidden />}

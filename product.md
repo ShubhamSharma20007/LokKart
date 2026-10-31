@@ -30,3 +30,15 @@ https://bachatnix.vercel.app/api/webhooks/cashfree
 
 nimbuspost add the url 
 https://bachatnix.vercel.app/api/webhooks/nimbus
+
+
+
+
+<!-- Test Script -->
+$body = '{"orderId":"ORD-LGV8KX","event":"SHIPPED"}'
+>> Invoke-RestMethod -Uri "http://localhost:3000/api/webhooks/nimbus/test" -Method POST -ContentType "application/json" -Body $body
+
+
+
+$body = '{"orderId":"ORD-LGV8KX","event":"CONFIRMED"}'
+>> Invoke-RestMethod -Uri "http://localhost:3000/api/webhooks/nimbus/test" -Method POST -ContentType "application/json" -Body $body
