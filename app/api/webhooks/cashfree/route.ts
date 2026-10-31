@@ -20,16 +20,30 @@ type CashfreeWebhookPayload = {
   type?: string;
 };
 
+export async function GET() {
+  return NextResponse.json({ ok: true, service: "Cashfree Webhook Handler", status: "active" });
+}
+
 export async function POST(req: NextRequest) {
   // 1. Read raw body text for signature verification
   const rawBody = await req.text();
+
+  // If it's an empty body or simple ping
+  if (!rawBody || rawBody.trim() === "test") {
+    return NextResponse.json({ ok: true, message: "Test ping received" });
+  }
 
   // 2. Get signature headers
   const timestamp = req.headers.get("x-webhook-timestamp") ?? "";
   const signature = req.headers.get("x-webhook-signature") ?? "";
 
-  // 3. Verify signature
+  // 3. Verify signature (allow test pings from dashboard if payload contains TEST)
+  const isTestPing = rawBody.includes('"TEST"') || rawBody.includes('"test"');
   if (!timestamp || !signature || !verifyCashfreeWebhook(rawBody, timestamp, signature)) {
+    if (isTestPing) {
+      console.log("[Cashfree Webhook] Test ping received from dashboard.");
+      return NextResponse.json({ ok: true, message: "Test event received" });
+    }
     console.warn("[Cashfree Webhook] Invalid signature received");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
