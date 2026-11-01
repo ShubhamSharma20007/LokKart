@@ -102,7 +102,7 @@ export function ProductDetailView({ product }: { product: StoreProduct }) {
   };
 
   return (
-    <div className="mt-6 grid gap-8 md:grid-cols-[400px_1fr] lg:grid-cols-[440px_1fr] lg:gap-12 items-start">
+    <div className="grid gap-6 sm:gap-8 md:grid-cols-[400px_1fr] lg:grid-cols-[440px_1fr] lg:gap-12 items-start">
       {/* Interactive Multi-Image Gallery with Color-Sync */}
       <ProductGallery
         product={product}

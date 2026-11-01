@@ -4,11 +4,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { ArrowLeft } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
 import { ProductCard } from "@/components/product-card";
 import { ProductDetailView } from "@/components/product-detail-view";
+import { ProductSkeleton } from "./product-skeleton";
 import { getRelatedProducts, getStoreProduct } from "@/lib/catalog";
-import { cn } from "@/lib/utils";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -21,10 +20,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default function ProductPage({ params }: Props) {
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8">
-      <Link href="/products" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" aria-hidden /> All products
-      </Link>
+    <main className="mx-auto max-w-6xl px-4 py-4 sm:py-8">
+      {/* Top Navigation Row - fixed height to prevent back button from jumping/shifting */}
+      <div className="flex items-center min-h-[32px] mb-4 sm:mb-6">
+        <Link
+          href="/products"
+          className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="size-4" aria-hidden /> All products
+        </Link>
+      </div>
+
       <Suspense fallback={<ProductSkeleton />}>
         <ProductContent params={params} />
       </Suspense>
@@ -71,16 +77,4 @@ async function ProductContent({ params }: Props) {
   );
 }
 
-function ProductSkeleton() {
-  return (
-    <div className="mt-6 grid gap-8 md:grid-cols-[400px_1fr] lg:grid-cols-[440px_1fr] lg:gap-12 items-start">
-      <div className="aspect-square max-h-[440px] w-full animate-pulse rounded-2xl bg-muted" />
-      <div className="space-y-4">
-        <div className="h-5 w-20 animate-pulse rounded bg-muted" />
-        <div className="h-8 w-3/4 animate-pulse rounded bg-muted" />
-        <div className="h-16 animate-pulse rounded bg-muted" />
-        <div className="h-28 animate-pulse rounded-2xl bg-muted" />
-      </div>
-    </div>
-  );
-}
+

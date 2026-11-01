@@ -53,7 +53,7 @@ export function ProductCard({ product }: { product: StoreProduct }) {
           </div>
           <div>
             {product.stock > 0 ? (
-              product.stock <= 20 ? (
+              product.stock <= 5 ? (
                 <span className="inline-block rounded-full bg-[#fcc618] px-2 py-0.5 text-[9px] sm:text-[10px] font-bold text-black">
                   Only {product.stock} left
                 </span>
