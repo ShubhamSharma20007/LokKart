@@ -67,27 +67,30 @@ export default function CartPage() {
                       </p>
                       {i.qty >= i.stock && <p className="text-xs font-medium text-primary">Maximum available quantity</p>}
                     </div>
-                    <div className="flex items-center gap-1" role="group" aria-label={`Quantity for ${i.title}`}>
-                      <Button variant="outline" size="icon" aria-label="Decrease quantity" disabled={i.qty <= 1} onClick={() => dispatch(setQty({ id: i.id, qty: i.qty - 1 }))}>
-                        <Minus />
-                      </Button>
-                      <span className="w-10 text-center font-medium" aria-live="polite">{i.qty}</span>
-                      <Button variant="outline" size="icon" aria-label="Increase quantity" disabled={i.qty >= i.stock} onClick={() => dispatch(setQty({ id: i.id, qty: i.qty + 1 }))}>
-                        <Plus />
+                    <div className="flex w-full sm:w-auto items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-0 border-border/40">
+                      <div className="flex items-center gap-1" role="group" aria-label={`Quantity for ${i.title}`}>
+                        <Button variant="outline" size="icon" className="size-8" aria-label="Decrease quantity" disabled={i.qty <= 1} onClick={() => dispatch(setQty({ id: i.id, qty: i.qty - 1 }))}>
+                          <Minus className="size-3.5" />
+                        </Button>
+                        <span className="w-8 text-center text-sm font-semibold" aria-live="polite">{i.qty}</span>
+                        <Button variant="outline" size="icon" className="size-8" aria-label="Increase quantity" disabled={i.qty >= i.stock} onClick={() => dispatch(setQty({ id: i.id, qty: i.qty + 1 }))}>
+                          <Plus className="size-3.5" />
+                        </Button>
+                      </div>
+                      <p className="min-w-16 sm:w-20 text-right font-bold text-sm sm:text-base">{formatINR(i.price * i.qty)}</p>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        aria-label={`Remove ${i.title}`}
+                        onClick={() => {
+                          dispatch(removeItem(i.id));
+                          toast("Removed from cart", { description: i.title });
+                        }}
+                      >
+                        <Trash2 className="size-4" />
                       </Button>
                     </div>
-                    <p className="w-24 text-right font-semibold">{formatINR(i.price * i.qty)}</p>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Remove ${i.title}`}
-                      onClick={() => {
-                        dispatch(removeItem(i.id));
-                        toast("Removed from cart", { description: i.title });
-                      }}
-                    >
-                      <Trash2 />
-                    </Button>
                   </CardContent>
                 </Card>
               </li>

@@ -80,11 +80,11 @@ export default function OrdersPage() {
   }, [user, attempt]);
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-10">
+    <main className="mx-auto max-w-4xl px-4 py-6 sm:py-10">
       <div className="flex items-center gap-3">
-        <h1 className="font-heading text-3xl font-bold tracking-tight">My orders</h1>
+        <h1 className="font-heading text-2xl sm:text-3xl font-bold tracking-tight">My orders</h1>
         {orders && orders.length > 0 && (
-          <Badge variant="secondary" className="h-6 px-2.5 text-sm">
+          <Badge variant="secondary" className="h-6 px-2.5 text-xs sm:text-sm">
             {orders.length} {orders.length === 1 ? "order" : "orders"}
           </Badge>
         )}
@@ -98,8 +98,8 @@ export default function OrdersPage() {
             <Package className="size-7 text-primary" aria-hidden />
           </div>
           <h2 className="font-heading mt-5 text-xl font-bold">Sign in to see your orders</h2>
-          <p className="mx-auto mt-2 max-w-sm text-muted-foreground">
-            Orders you place while signed in show up here with their status.
+          <p className="mx-auto mt-2 max-w-sm text-muted-foreground text-xs sm:text-sm">
+            Orders you place while signed in show up here with their delivery status.
           </p>
           <Button className="mt-6 h-10 px-5" onClick={signIn} disabled={signingIn}>
             {signingIn && <Loader2 className="animate-spin" aria-hidden />}
@@ -121,7 +121,7 @@ export default function OrdersPage() {
             <Package className="size-7 text-primary" aria-hidden />
           </div>
           <h2 className="font-heading mt-5 text-xl font-bold">No orders yet</h2>
-          <p className="mx-auto mt-2 max-w-sm text-muted-foreground">
+          <p className="mx-auto mt-2 max-w-sm text-muted-foreground text-xs sm:text-sm">
             When you place an order it will show up here.
           </p>
           <Link href="/products" className={cn(buttonVariants({ size: "lg" }), "mt-6 h-10 px-5")}>
@@ -137,11 +137,11 @@ export default function OrdersPage() {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="font-mono text-sm font-semibold">{o.ref}</p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-xs sm:text-sm text-muted-foreground">
                         Placed on {dateFmt.format(new Date(o.createdAt))}
                       </p>
                     </div>
-                    <Badge variant={statusVariant[o.status]} className="h-6 px-2.5 text-sm">
+                    <Badge variant={statusVariant[o.status]} className="h-6 px-2.5 text-xs sm:text-sm font-semibold">
                       {statusLabel[o.status]}
                     </Badge>
                   </div>
@@ -150,11 +150,24 @@ export default function OrdersPage() {
 
                   <ul className="space-y-2 text-sm">
                     {o.items.map((i) => (
-                      <li key={i.id} className="flex justify-between gap-3">
-                        <Link href={`/products/${i.productId}`} className="hover:underline">
-                          {i.title} <span className="text-muted-foreground">× {i.qty}</span>
-                        </Link>
-                        <span className="font-medium">{formatINR(i.price * i.qty)}</span>
+                      <li key={i.id} className="flex flex-wrap items-baseline justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Link href={`/products/${i.productId}`} className="font-medium hover:underline">
+                            {i.title}
+                          </Link>
+                          {i.color && (
+                            <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-semibold">
+                              {i.color}
+                            </Badge>
+                          )}
+                          {i.size && (
+                            <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-bold">
+                              Size: {i.size}
+                            </Badge>
+                          )}
+                          <span className="text-xs text-muted-foreground font-mono">× {i.qty}</span>
+                        </div>
+                        <span className="font-semibold text-sm">{formatINR(i.price * i.qty)}</span>
                       </li>
                     ))}
                   </ul>
@@ -165,7 +178,7 @@ export default function OrdersPage() {
                     <div className="space-y-1 text-sm text-muted-foreground">
                       <p>{paymentText(o)}</p>
                       {o.address.address && (
-                        <p className="flex items-start gap-1.5">
+                        <p className="flex items-start gap-1.5 text-xs sm:text-sm">
                           <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden />
                           <span>
                             {o.address.address}, {o.address.city}, {o.address.state} {o.address.pincode}
@@ -187,8 +200,8 @@ export default function OrdersPage() {
                       )}
                     </div>
                     <div className="text-right">
-                      <p className="text-sm text-muted-foreground">Total</p>
-                      <p className="font-heading text-2xl font-bold">{formatINR(o.total)}</p>
+                      <p className="text-xs text-muted-foreground">Total</p>
+                      <p className="font-heading text-xl sm:text-2xl font-bold">{formatINR(o.total)}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -232,19 +245,6 @@ function OrdersSkeleton() {
                     <Skeleton className="h-4 w-16" />
                   </div>
                 ))}
-              </div>
-
-              <Separator />
-
-              <div className="flex flex-wrap items-end justify-between gap-4">
-                <div className="space-y-2">
-                  <Skeleton className="h-3.5 w-32" />
-                  <Skeleton className="h-3.5 w-64 max-w-full" />
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  <Skeleton className="h-3.5 w-10" />
-                  <Skeleton className="h-8 w-24" />
-                </div>
               </div>
             </CardContent>
           </Card>

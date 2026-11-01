@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 
 type CartProduct = Pick<StoreProduct, "id" | "title" | "price" | "mrp" | "stock"> & {
   sizes?: string[];
+  colors?: string[];
 };
 
 export function AddToCart({
@@ -30,6 +31,8 @@ export function AddToCart({
   const router = useRouter();
   const mounted = useMounted();
   const hasSizes = !!product.sizes && product.sizes.length > 0;
+  const hasColors = !!product.colors && product.colors.length > 0;
+  const hasVariants = hasSizes || hasColors;
   
   // Default to first size if available on detail page, or let user pick
   const [selectedSize, setSelectedSize] = useState<string | null>(
@@ -78,8 +81,8 @@ export function AddToCart({
     e.preventDefault();
     e.stopPropagation();
 
-    // If on listing / compact card and product has sizes, direct user to detail page to pick size
-    if ((compact || iconOnly) && hasSizes) {
+    // If on listing / compact card and product has variants (sizes or colors), direct user to detail page to pick
+    if ((compact || iconOnly) && hasVariants) {
       router.push(`/products/${product.id}`);
       return;
     }
@@ -169,7 +172,11 @@ export function AddToCart({
           )}
         >
           <ShoppingCart className={compact ? "size-3.5" : "size-4"} aria-hidden />
-          {mounted && inCart ? `In cart (${inCart.qty})` : "Add to cart"}
+          {mounted && inCart
+            ? `In cart (${inCart.qty})`
+            : compact && hasVariants
+            ? "Select"
+            : "Add to cart"}
         </Button>
         {buyNow && (
           <Button

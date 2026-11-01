@@ -29,7 +29,7 @@ export type AdminOrder = {
   status: OrderStatus;
   createdAt: string;
   address: { address?: string; city?: string; state?: string; pincode?: string };
-  items: { id: string; title: string; qty: number }[];
+  items: { id: string; title: string; qty: number; size?: string | null; color?: string | null }[];
   nimbusOrderId?: string | null;
   awb?: string | null;
   courierName?: string | null;
@@ -64,7 +64,7 @@ export async function listAdminOrders(
       orderBy: [{ createdAt: "desc" }, { id: "asc" }],
       skip: (current - 1) * pageSize,
       take: pageSize,
-      include: { items: { select: { id: true, title: true, qty: true } } },
+      include: { items: { select: { id: true, title: true, qty: true, size: true, color: true } } },
     });
 
     return {
@@ -249,7 +249,9 @@ export async function dispatchOrderViaNimbus(
         package_breadth: parcel.breadthCm,
         package_height: parcel.heightCm,
         order_items: order.items.map((it) => ({
-          name: it.title,
+          name: [it.color ? `Color: ${it.color}` : "", it.size ? `Size: ${it.size}` : ""].filter(Boolean).length > 0
+            ? `${it.title} (${[it.color ? `Color: ${it.color}` : "", it.size ? `Size: ${it.size}` : ""].filter(Boolean).join(", ")})`
+            : it.title,
           sku: `SKU-${it.productId.slice(-6).toUpperCase()}`,
           units: it.qty,
           selling_price: String(it.price),

@@ -513,7 +513,7 @@ export default function AdminProductsPage() {
                 : "Add a new product to your catalog."}
             </DialogDescription>
           </DialogHeader>
-          <ProductForm product={editing} onSaved={onSaved} onCancel={closeForm} />
+          <ProductForm key={editing?.id ?? "new"} product={editing} onSaved={onSaved} onCancel={closeForm} />
         </DialogContent>
       </Dialog>
 

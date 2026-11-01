@@ -464,10 +464,26 @@ export default function AdminOrdersPage() {
                         {/* Items */}
                         <TableCell className="align-top py-3.5 max-w-56 whitespace-normal text-xs">
                           {o.items.map((i) => (
-                            <p key={i.id} className="leading-snug">
-                              <span className="font-medium">{i.title}</span>{" "}
-                              <span className="text-muted-foreground">× {i.qty}</span>
-                            </p>
+                            <div key={i.id} className="leading-snug space-y-0.5 mb-1.5 last:mb-0">
+                              <p>
+                                <span className="font-medium">{i.title}</span>{" "}
+                                <span className="text-muted-foreground font-mono">× {i.qty}</span>
+                              </p>
+                              {(i.color || i.size) && (
+                                <div className="flex flex-wrap items-center gap-1">
+                                  {i.color && (
+                                    <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-foreground">
+                                      {i.color}
+                                    </span>
+                                  )}
+                                  {i.size && (
+                                    <span className="inline-flex items-center rounded bg-secondary px-1.5 py-0.5 text-[10px] font-bold text-secondary-foreground">
+                                      Size: {i.size}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           ))}
                         </TableCell>
 
