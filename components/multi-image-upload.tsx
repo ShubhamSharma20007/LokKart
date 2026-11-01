@@ -6,9 +6,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { auth } from "@/hooks/useFirebaseAuth";
 import { getImageKitAuth } from "@/lib/imagekit";
+import { optimizeProductImage } from "@/lib/image-compress";
 
 const UPLOAD_URL = "https://upload.imagekit.io/api/v1/files/upload";
-const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_RAW_INPUT_BYTES = 30 * 1024 * 1024; // 30 MB raw limit
 const MAX_IMAGES = 3;
 
 export type UploadedImage = {
@@ -99,8 +100,8 @@ export function MultiImageUpload({
         e.target.value = "";
         return;
       }
-      if (f.size > MAX_BYTES) {
-        setMessage(`"${f.name}" is larger than 5 MB.`);
+      if (f.size > MAX_RAW_INPUT_BYTES) {
+        setMessage(`"${f.name}" is larger than 30 MB. Please select a file under 30 MB.`);
         e.target.value = "";
         return;
       }
@@ -114,15 +115,34 @@ export function MultiImageUpload({
       if (!idToken) throw new Error("Sign in as an admin to upload images.");
 
       // ImageKit requires a unique one-time token for every single file upload.
-      // We upload all files in parallel with their own fresh auth token.
+      // We optimize large images (> 1.8 MB or > 5 MB) to 2400px HD WebP (0.92 quality)
+      // so product details/zooms stay crystal sharp without exceeding upload limits.
       const newlyUploaded = await Promise.all(
-        filesToUpload.map(async (file) => {
+        filesToUpload.map(async (rawFile) => {
+          let fileToUpload = rawFile;
+
+          try {
+            const opt = await optimizeProductImage(rawFile, {
+              maxDimension: 2400,
+              quality: 0.92,
+              targetMaxBytes: 4.5 * 1024 * 1024,
+            });
+            fileToUpload = opt.file;
+            if (opt.didCompress) {
+              const origMb = (opt.originalSize / (1024 * 1024)).toFixed(1);
+              const compMb = (opt.compressedSize / (1024 * 1024)).toFixed(1);
+              toast.info(`"${rawFile.name}" optimized (${origMb} MB → ${compMb} MB, HD quality preserved)`);
+            }
+          } catch (optErr) {
+            console.warn("Client optimization failed, using original:", optErr);
+          }
+
           const authData = await getImageKitAuth(idToken);
           if (!authData.ok) throw new Error(authData.message);
 
           const fd = new FormData();
-          fd.append("file", file);
-          fd.append("fileName", file.name);
+          fd.append("file", fileToUpload);
+          fd.append("fileName", fileToUpload.name);
           fd.append("publicKey", authData.publicKey);
           fd.append("signature", authData.signature);
           fd.append("expire", String(authData.expire));
@@ -133,7 +153,7 @@ export function MultiImageUpload({
           const res = await fetch(UPLOAD_URL, { method: "POST", body: fd });
           const data = await res.json().catch(() => ({}));
           if (!res.ok || typeof data.url !== "string" || typeof data.fileId !== "string") {
-            throw new Error(data?.message || `Failed to upload "${file.name}".`);
+            throw new Error(data?.message || `Failed to upload "${rawFile.name}".`);
           }
 
           return { url: data.url, fileId: data.fileId };
@@ -236,7 +256,7 @@ export function MultiImageUpload({
             {uploading ? (
               <>
                 <Loader2 className="size-5 animate-spin text-primary" />
-                <span className="text-[11px]">Uploading...</span>
+                <span className="text-[11px] font-medium">Optimizing...</span>
               </>
             ) : (
               <>
@@ -255,7 +275,7 @@ export function MultiImageUpload({
 
       {/* Helpful Hint */}
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>Upload up to 3 photos (Max 5 MB each). The 1st photo will be the main cover.</span>
+        <span>Upload up to 3 photos (Auto-optimized to HD WebP; max 30 MB raw). 1st photo is main cover.</span>
         <span className="font-medium text-foreground">{images.length} of {MAX_IMAGES} photos</span>
       </div>
 

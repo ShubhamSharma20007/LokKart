@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { CartSkeleton, EmptyCart } from "@/components/cart-states";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import { removeItem, selectCount, selectHydrated, selectSubtotal, setQty } from "@/lib/store/slices/cartSlice";
-import { formatINR } from "@/lib/products";
+import { formatINR, getColorHex } from "@/lib/products";
 import { cn } from "@/lib/utils";
 import { useMounted } from "@/lib/use-mounted";
 
@@ -47,6 +47,15 @@ export default function CartPage() {
                         <Link href={`/products/${i.productId || i.id}`} className="font-medium hover:underline">
                           {i.title}
                         </Link>
+                        {i.color && (
+                          <Badge variant="outline" className="h-5 px-1.5 text-[11px] font-semibold gap-1">
+                            <span
+                              className="size-2 rounded-full border border-black/20 shrink-0"
+                              style={{ backgroundColor: getColorHex(i.color) }}
+                            />
+                            {i.color}
+                          </Badge>
+                        )}
                         {i.size && (
                           <Badge variant="secondary" className="h-5 px-1.5 text-[11px] font-semibold">
                             Size: {i.size}

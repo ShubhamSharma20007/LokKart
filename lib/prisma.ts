@@ -6,7 +6,7 @@ const globalForPrisma = global as unknown as {
   schemaVersion?: string;
 };
 
-const CURRENT_SCHEMA_VERSION = "v3_colors";
+const CURRENT_SCHEMA_VERSION = "v4_colors_generated";
 
 if (globalForPrisma.schemaVersion !== CURRENT_SCHEMA_VERSION) {
   if (globalForPrisma.prisma) {

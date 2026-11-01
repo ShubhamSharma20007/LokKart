@@ -9,6 +9,7 @@ export type CartItem = {
   stock: number;
   qty: number;
   size?: string;
+  color?: string;
   productId?: string;
 };
 type CartState = { items: CartItem[]; hydrated: boolean };

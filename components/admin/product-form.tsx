@@ -14,7 +14,7 @@ import { MultiImageUpload } from "@/components/multi-image-upload";
 import { auth } from "@/hooks/useFirebaseAuth";
 import { createProduct, updateProduct } from "@/lib/actions";
 import { initialState, type FormState } from "@/lib/forms";
-import { categories } from "@/lib/products";
+import { categories, CLOTHING_COLORS, getColorHex } from "@/lib/products";
 import type { AdminProduct } from "@/lib/admin-actions";
 
 export const SHIPPING_PRESETS = [
@@ -96,6 +96,8 @@ export function ProductForm({
   const [selectedPreset, setSelectedPreset] = useState<string | null>(product ? null : "tshirt");
   const [sizes, setSizes] = useState<string[]>(product?.sizes || []);
   const [customSize, setCustomSize] = useState("");
+  const [colors, setColors] = useState<string[]>(product?.colors || []);
+  const [customColor, setCustomColor] = useState("");
 
   const toggleSize = (s: string) => {
     setSizes((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
@@ -106,6 +108,18 @@ export function ProductForm({
     if (trimmed && !sizes.includes(trimmed)) {
       setSizes((prev) => [...prev, trimmed]);
       setCustomSize("");
+    }
+  };
+
+  const toggleColor = (c: string) => {
+    setColors((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
+  };
+
+  const addCustomColor = () => {
+    const trimmed = customColor.trim();
+    if (trimmed && !colors.includes(trimmed)) {
+      setColors((prev) => [...prev, trimmed]);
+      setCustomColor("");
     }
   };
   const handled = useRef<FormState | null>(null);
@@ -119,10 +133,6 @@ export function ProductForm({
     setLengthCm(String(p.lengthCm));
     setWidthCm(String(p.widthCm));
     setHeightCm(String(p.heightCm));
-    if (!product && p.category) {
-      setIsCustomCategory(!categories.includes(p.category));
-      setCategory(p.category);
-    }
   };
 
   const handleCategoryChange = (val: string | null) => {
@@ -439,6 +449,139 @@ export function ProductForm({
         )}
 
         <input type="hidden" name="sizesJson" value={JSON.stringify(sizes)} />
+      </div>
+
+      {/* Available Colors Section */}
+      <div className="space-y-3 rounded-xl border p-4 bg-muted/10">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Available Colors</p>
+            <p className="text-xs text-muted-foreground">
+              Select or add colors (e.g. Teal Green, Maroon, Purple, Black). Leave empty if not applicable.
+            </p>
+          </div>
+          {colors.length > 0 ? (
+            <Badge variant="secondary" className="text-xs font-semibold">
+              {colors.length} {colors.length === 1 ? "color" : "colors"} enabled
+            </Badge>
+          ) : (
+            <span className="text-[11px] text-muted-foreground">No colors (single piece)</span>
+          )}
+        </div>
+
+        {/* Quick Color Presets */}
+        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+          <span className="text-[11px] font-medium text-muted-foreground mr-1">Presets:</span>
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            className="text-[11px] h-6"
+            onClick={() => setColors(["Black", "White", "Navy Blue", "Grey"])}
+          >
+            Classic (Black, White, Navy, Grey)
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            className="text-[11px] h-6"
+            onClick={() => setColors(["Teal Green", "Maroon", "Purple", "Black"])}
+          >
+            Trendy (Teal, Maroon, Purple, Black)
+          </Button>
+          {colors.length > 0 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              className="text-[11px] h-6 text-destructive hover:bg-destructive/10"
+              onClick={() => setColors([])}
+            >
+              Clear all
+            </Button>
+          )}
+        </div>
+
+        {/* Common Color Chips Toggle */}
+        <div className="space-y-1.5 pt-1">
+          <p className="text-[11px] font-medium text-muted-foreground">Click to toggle colors:</p>
+          <div className="flex flex-wrap gap-1.5">
+            {CLOTHING_COLORS.map((c) => {
+              const active = colors.includes(c.name);
+              return (
+                <button
+                  key={c.name}
+                  type="button"
+                  onClick={() => toggleColor(c.name)}
+                  className={cn(
+                    "flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-medium transition-all border select-none",
+                    active
+                      ? "border-primary bg-primary text-primary-foreground shadow-2xs font-semibold"
+                      : "border-border bg-background hover:bg-muted text-foreground"
+                  )}
+                >
+                  <span
+                    className="size-3 rounded-full border border-black/20 shrink-0"
+                    style={{ backgroundColor: c.hex }}
+                  />
+                  {c.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Custom Color Input */}
+        <div className="flex items-center gap-2 pt-1 max-w-sm">
+          <Input
+            value={customColor}
+            onChange={(e) => setCustomColor(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addCustomColor();
+              }
+            }}
+            placeholder="Custom color (e.g. Mint Green, Wine, Rust)"
+            className="h-8 text-xs"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs shrink-0"
+            onClick={addCustomColor}
+          >
+            + Add color
+          </Button>
+        </div>
+
+        {/* Selected Colors Pills */}
+        {colors.length > 0 && (
+          <div className="pt-1 flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] font-medium text-muted-foreground">Selected:</span>
+            {colors.map((c) => (
+              <Badge key={c} variant="secondary" className="gap-1.5 pl-2 pr-1 py-0.5 text-xs font-semibold">
+                <span
+                  className="size-2.5 rounded-full border border-black/20 shrink-0"
+                  style={{ backgroundColor: getColorHex(c) }}
+                />
+                {c}
+                <button
+                  type="button"
+                  onClick={() => toggleColor(c)}
+                  className="rounded-full hover:bg-muted-foreground/20 p-0.5 text-muted-foreground hover:text-foreground"
+                  title={`Remove ${c}`}
+                >
+                  <X className="size-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        <input type="hidden" name="colorsJson" value={JSON.stringify(colors)} />
       </div>
 
       <div className="space-y-1.5">

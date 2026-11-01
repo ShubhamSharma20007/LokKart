@@ -16,6 +16,7 @@ export type StoreProduct = {
   imageUrl: string | null;
   images: string[];
   sizes: string[];
+  colors: string[];
 };
 
 type Row = Omit<StoreProduct, "category"> & { category: string };
@@ -34,6 +35,7 @@ const select = {
   imageUrl: true,
   images: true,
   sizes: true,
+  colors: true,
 } as const;
 
 // Accepts any dynamic category stored in the database without skipping.
@@ -46,7 +48,8 @@ function toStoreProduct(row: Row): StoreProduct {
       ? [row.imageUrl]
       : [];
   const sizes = Array.isArray(row.sizes) ? row.sizes : [];
-  return { ...row, category, images, sizes };
+  const colors = Array.isArray(row.colors) ? row.colors : [];
+  return { ...row, category, images, sizes, colors };
 }
 
 const keep = (rows: Row[]): StoreProduct[] => rows.map(toStoreProduct);

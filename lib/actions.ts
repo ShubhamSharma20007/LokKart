@@ -88,9 +88,11 @@ export async function createProduct(_prev: FormState, fd: FormData): Promise<For
   const imagesJson = String(fd.get("imagesJson") ?? "[]");
   const imageFileIdsJson = String(fd.get("imageFileIdsJson") ?? "[]");
   const sizesJson = String(fd.get("sizesJson") ?? "[]");
+  const colorsJson = String(fd.get("colorsJson") ?? "[]");
   let images: string[] = [];
   let imageFileIds: string[] = [];
   let sizes: string[] = [];
+  let colors: string[] = [];
   try {
     images = JSON.parse(imagesJson);
     imageFileIds = JSON.parse(imageFileIdsJson);
@@ -99,6 +101,12 @@ export async function createProduct(_prev: FormState, fd: FormData): Promise<For
     const parsedSizes = JSON.parse(sizesJson);
     if (Array.isArray(parsedSizes)) {
       sizes = parsedSizes.map(String).map((x) => x.trim()).filter(Boolean);
+    }
+  } catch {}
+  try {
+    const parsedColors = JSON.parse(colorsJson);
+    if (Array.isArray(parsedColors)) {
+      colors = parsedColors.map(String).map((x) => x.trim()).filter(Boolean);
     }
   } catch {}
 
@@ -125,6 +133,7 @@ export async function createProduct(_prev: FormState, fd: FormData): Promise<For
         images: images,
         imageFileIds: imageFileIds,
         sizes: sizes,
+        colors: colors,
         basePrice: basePrice,
         shippingBuffer: shippingBuffer,
       },
@@ -324,9 +333,11 @@ export async function updateProduct(_prev: FormState, fd: FormData): Promise<For
   const imagesJson = String(fd.get("imagesJson") ?? "[]");
   const imageFileIdsJson = String(fd.get("imageFileIdsJson") ?? "[]");
   const sizesJson = String(fd.get("sizesJson") ?? "[]");
+  const colorsJson = String(fd.get("colorsJson") ?? "[]");
   let images: string[] = [];
   let imageFileIds: string[] = [];
   let sizes: string[] = [];
+  let colors: string[] = [];
   try {
     images = JSON.parse(imagesJson);
     imageFileIds = JSON.parse(imageFileIdsJson);
@@ -335,6 +346,12 @@ export async function updateProduct(_prev: FormState, fd: FormData): Promise<For
     const parsedSizes = JSON.parse(sizesJson);
     if (Array.isArray(parsedSizes)) {
       sizes = parsedSizes.map(String).map((x) => x.trim()).filter(Boolean);
+    }
+  } catch {}
+  try {
+    const parsedColors = JSON.parse(colorsJson);
+    if (Array.isArray(parsedColors)) {
+      colors = parsedColors.map(String).map((x) => x.trim()).filter(Boolean);
     }
   } catch {}
 
@@ -391,6 +408,7 @@ export async function updateProduct(_prev: FormState, fd: FormData): Promise<For
         images: images,
         imageFileIds: imageFileIds,
         sizes: sizes,
+        colors: colors,
       },
     });
   } catch (err) {

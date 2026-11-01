@@ -2,12 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ImagePlus, Loader2, Pencil, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { auth } from "@/hooks/useFirebaseAuth";
 import { getImageKitAuth } from "@/lib/imagekit";
+import { optimizeProductImage } from "@/lib/image-compress";
 
 const UPLOAD_URL = "https://upload.imagekit.io/api/v1/files/upload";
-const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_RAW_INPUT_BYTES = 30 * 1024 * 1024; // 30 MB raw limit
 
 type Props = {
   /** Form field for the image URL. The ImageKit file id is sent as `${name}FileId`. */
@@ -54,25 +56,42 @@ export function ImageUpload({ name, defaultValue = "", defaultFileId = "", error
   };
 
   const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const rawFile = e.target.files?.[0];
+    if (!rawFile) return;
 
-    if (!file.type.startsWith("image/")) {
+    if (!rawFile.type.startsWith("image/")) {
       setMessage("Choose an image file (JPG, PNG, WebP).");
       e.target.value = "";
       return;
     }
-    if (file.size > MAX_BYTES) {
-      setMessage("Image must be 5 MB or smaller.");
+    if (rawFile.size > MAX_RAW_INPUT_BYTES) {
+      setMessage(`"${rawFile.name}" is larger than 30 MB. Please select a file under 30 MB.`);
       e.target.value = "";
       return;
     }
 
     setMessage(undefined);
-    setPreview(URL.createObjectURL(file));
+    setPreview(URL.createObjectURL(rawFile));
     setUploading(true);
 
     try {
+      let fileToUpload = rawFile;
+      try {
+        const opt = await optimizeProductImage(rawFile, {
+          maxDimension: 2400,
+          quality: 0.92,
+          targetMaxBytes: 4.5 * 1024 * 1024,
+        });
+        fileToUpload = opt.file;
+        if (opt.didCompress) {
+          const origMb = (opt.originalSize / (1024 * 1024)).toFixed(1);
+          const compMb = (opt.compressedSize / (1024 * 1024)).toFixed(1);
+          toast.info(`"${rawFile.name}" optimized (${origMb} MB → ${compMb} MB, HD quality preserved)`);
+        }
+      } catch (optErr) {
+        console.warn("Client optimization failed, using original:", optErr);
+      }
+
       const idToken = await auth.currentUser?.getIdToken();
       if (!idToken) throw new Error("Sign in as an admin to upload images.");
 
@@ -80,8 +99,8 @@ export function ImageUpload({ name, defaultValue = "", defaultFileId = "", error
       if (!a.ok) throw new Error(a.message);
 
       const fd = new FormData();
-      fd.append("file", file);
-      fd.append("fileName", file.name);
+      fd.append("file", fileToUpload);
+      fd.append("fileName", fileToUpload.name);
       fd.append("publicKey", a.publicKey);
       fd.append("signature", a.signature);
       fd.append("expire", String(a.expire));
@@ -208,7 +227,7 @@ export function ImageUpload({ name, defaultValue = "", defaultFileId = "", error
         >
           <ImagePlus className="size-6 text-primary" aria-hidden />
           <span className="font-medium text-foreground">Choose an image</span>
-          <span>JPG, PNG or WebP, up to 5 MB</span>
+          <span>JPG, PNG or WebP (Auto-optimized to HD; max 30 MB raw)</span>
         </label>
       )}
 

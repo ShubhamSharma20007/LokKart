@@ -18,6 +18,7 @@ export type AdminProduct = {
   images?: string[];
   imageFileIds?: string[];
   sizes?: string[];
+  colors?: string[];
   weightG: number;
   lengthCm: number;
   widthCm: number;
@@ -78,6 +79,7 @@ export async function listAdminProducts(
         images: true,
         imageFileIds: true,
         sizes: true,
+        colors: true,
         createdAt: true,
         weightG: true,
         lengthCm: true,

@@ -40,7 +40,7 @@ import { auth } from "@/hooks/useFirebaseAuth";
 import { deleteProduct } from "@/lib/actions";
 import { listAdminProducts, type AdminProduct } from "@/lib/admin-actions";
 import { imageSrc } from "@/lib/product-image";
-import { formatINR } from "@/lib/products";
+import { formatINR, getColorHex } from "@/lib/products";
 
 export default function AdminProductsPage() {
   const { user, loading } = useAuth();
@@ -331,6 +331,27 @@ export default function AdminProductsPage() {
                             )}
                           </div>
                         )}
+                        {p.colors && p.colors.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1 mt-1">
+                            {p.colors.slice(0, 4).map((c) => (
+                              <span
+                                key={c}
+                                className="inline-flex items-center gap-1 rounded border bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-foreground"
+                              >
+                                <span
+                                  className="size-2 rounded-full border border-black/20 shrink-0"
+                                  style={{ backgroundColor: getColorHex(c) }}
+                                />
+                                {c}
+                              </span>
+                            ))}
+                            {p.colors.length > 4 && (
+                              <span className="text-[10px] text-muted-foreground self-center">
+                                +{p.colors.length - 4}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary" className="text-xs font-normal">
@@ -345,6 +366,27 @@ export default function AdminProductsPage() {
                         {p.shippingBuffer > 0 && (
                           <div className="text-[11px] text-muted-foreground">
                             Base {formatINR(p.basePrice > 0 ? p.basePrice : p.price - p.shippingBuffer)} + Ship {formatINR(p.shippingBuffer)}
+                          </div>
+                        )}
+                        {p.colors && p.colors.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1 mt-1">
+                            {p.colors.slice(0, 4).map((c) => (
+                              <span
+                                key={c}
+                                className="inline-flex items-center gap-1 rounded border bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-foreground"
+                              >
+                                <span
+                                  className="size-2 rounded-full border border-black/20 shrink-0"
+                                  style={{ backgroundColor: getColorHex(c) }}
+                                />
+                                {c}
+                              </span>
+                            ))}
+                            {p.colors.length > 4 && (
+                              <span className="text-[10px] text-muted-foreground self-center">
+                                +{p.colors.length - 4}
+                              </span>
+                            )}
                           </div>
                         )}
                       </TableCell>

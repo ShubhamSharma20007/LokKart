@@ -2,14 +2,21 @@
 
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { categoryIcons } from "@/components/category-icon";
 import { imageSrc } from "@/lib/product-image";
 import { discountPct } from "@/lib/products";
 import type { StoreProduct } from "@/lib/catalog";
 import { cn } from "@/lib/utils";
 
-export function ProductGallery({ product }: { product: StoreProduct }) {
+export function ProductGallery({
+  product,
+  activeIndex: controlledIndex,
+  onIndexChange: controlledOnChange,
+}: {
+  product: StoreProduct;
+  activeIndex?: number;
+  onIndexChange?: (idx: number) => void;
+}) {
   const images: string[] =
     product.images && product.images.length > 0
       ? product.images
@@ -17,7 +24,16 @@ export function ProductGallery({ product }: { product: StoreProduct }) {
       ? [product.imageUrl]
       : [];
 
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [internalIndex, setInternalIndex] = useState(0);
+  const activeIndex = controlledIndex !== undefined ? controlledIndex : internalIndex;
+  const setActiveIndex = (updater: number | ((prev: number) => number)) => {
+    const nextVal = typeof updater === "function" ? updater(activeIndex) : updater;
+    if (controlledOnChange) {
+      controlledOnChange(nextVal);
+    } else {
+      setInternalIndex(nextVal);
+    }
+  };
 
   const prevImage = () => {
     setActiveIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
@@ -98,17 +114,12 @@ export function ProductGallery({ product }: { product: StoreProduct }) {
                 className={cn(
                   "relative aspect-square size-14 sm:size-16 shrink-0 overflow-hidden rounded-lg border-2 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   isActive
-                    ? "border-primary ring-2 ring-primary/30 opacity-100 scale-102"
-                    : "border-transparent opacity-60 hover:opacity-100"
+                    ? "border-primary ring-2 ring-primary/20 scale-105"
+                    : "border-border/60 hover:border-primary/50 opacity-75 hover:opacity-100"
                 )}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={imageSrc(img, 200)}
-                  alt={`${product.title} thumbnail ${idx + 1}`}
-                  loading="lazy"
-                  className="size-full object-cover"
-                />
+                <img src={imageSrc(img, 150)} alt="" className="size-full object-cover" />
               </button>
             );
           })}
@@ -117,4 +128,3 @@ export function ProductGallery({ product }: { product: StoreProduct }) {
     </div>
   );
 }
-

@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
         state: string;
         pincode: string;
       };
-      items?: { id: string; productId?: string; qty: number; size?: string }[];
+      items?: { id: string; productId?: string; qty: number; size?: string; color?: string }[];
     };
 
     const { token, address: a, items: rawItems } = body;
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
     const byId = new Map(products.map((p) => [p.id, p]));
 
     let subtotal = 0;
-    const lines: { productId: string; title: string; price: number; qty: number; size?: string | null }[] = [];
+    const lines: { productId: string; title: string; price: number; qty: number; size?: string | null; color?: string | null }[] = [];
 
     for (const i of wanted) {
       const p = byId.get(i.productId || i.id);
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
         );
       }
       subtotal += p.price * i.qty;
-      lines.push({ productId: p.id, title: p.title, price: p.price, qty: i.qty, size: i.size || null });
+      lines.push({ productId: p.id, title: p.title, price: p.price, qty: i.qty, size: i.size || null, color: i.color || null });
     }
 
     const total = subtotal; // UPI: no COD charge, free shipping

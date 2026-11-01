@@ -471,7 +471,12 @@ export function CheckoutForm() {
         token,
         payment: "COD",
         address: form,
-        items: items.map((i) => ({ id: i.productId || i.id, qty: i.qty, size: i.size })),
+        items: items.map((i) => ({
+          id: i.productId || i.id,
+          qty: i.qty,
+          size: i.size,
+          color: i.color,
+        })),
       });
 
       if (!res.ok) {
@@ -506,7 +511,12 @@ export function CheckoutForm() {
         body: JSON.stringify({
           token,
           address: form,
-          items: items.map((i) => ({ id: i.productId || i.id, qty: i.qty, size: i.size })),
+          items: items.map((i) => ({
+          id: i.productId || i.id,
+          qty: i.qty,
+          size: i.size,
+          color: i.color,
+        })),
         }),
       });
 
@@ -687,12 +697,12 @@ export function CheckoutForm() {
                           {isSelected ? (
                             <Badge
                               variant="secondary"
-                              className="h-6 gap-1 border border-primary/30 bg-primary/10 px-2 text-[11px] font-semibold text-primary"
+                              className="h-7 gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-2.5 text-xs font-semibold text-primary"
                             >
-                              <Check className="size-3 stroke-[2.5]" /> Delivering here
+                              <Check className="size-3.5 stroke-[2.5]" /> Delivering here
                             </Badge>
                           ) : (
-                            <span className="text-[11px] font-medium text-muted-foreground">
+                            <span className="text-xs font-medium text-muted-foreground/80">
                               Click card to select
                             </span>
                           )}
@@ -702,7 +712,7 @@ export function CheckoutForm() {
                               type="button"
                               variant="outline"
                               size="xs"
-                              className="h-6 gap-1 px-2 text-[11px] font-medium bg-background hover:bg-muted text-foreground shadow-2xs"
+                              className="h-7 gap-1.5 rounded-md border-border/80 bg-secondary/50 hover:bg-secondary text-foreground hover:border-border px-2.5 text-xs font-medium shadow-2xs transition-colors"
                               onClick={(e) => handleEditAddress(addr, e)}
                             >
                               <Pencil className="size-3 text-muted-foreground" />
@@ -713,7 +723,7 @@ export function CheckoutForm() {
                                 type="button"
                                 variant="outline"
                                 size="xs"
-                                className="h-6 gap-1 px-2 text-[11px] font-medium text-destructive border-destructive/25 bg-background shadow-2xs hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40"
+                                className="h-7 gap-1.5 rounded-md border-destructive/30 bg-destructive/10 hover:bg-destructive hover:text-destructive-foreground text-destructive px-2.5 text-xs font-medium shadow-2xs transition-colors"
                                 onClick={(e) => handleDeleteAddress(addr.id, e)}
                               >
                                 <Trash2 className="size-3" />
@@ -1052,9 +1062,9 @@ export function CheckoutForm() {
                 <li key={i.id} className="flex justify-between gap-3">
                   <div className="line-clamp-1">
                     <span>{i.title}</span>
-                    {i.size && (
+                    {(i.color || i.size) && (
                       <span className="ml-1.5 inline-block text-[11px] font-semibold text-primary">
-                        ({i.size})
+                        ({[i.color, i.size ? `Size: ${i.size}` : null].filter(Boolean).join(" • ")})
                       </span>
                     )}
                     <span className="text-muted-foreground"> × {i.qty}</span>
