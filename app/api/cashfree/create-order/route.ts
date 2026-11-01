@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
         state: string;
         pincode: string;
       };
-      items?: { id: string; qty: number }[];
+      items?: { id: string; productId?: string; qty: number; size?: string }[];
     };
 
     const { token, address: a, items: rawItems } = body;
@@ -63,8 +63,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, message: "Your cart is empty." }, { status: 400 });
     }
 
+    const productIds = wanted.map((i) => i.productId || i.id);
     const products = await prisma.product.findMany({
-      where: { id: { in: wanted.map((i) => i.id) } },
+      where: { id: { in: productIds } },
       select: {
         id: true,
         title: true,
@@ -79,10 +80,10 @@ export async function POST(req: NextRequest) {
     const byId = new Map(products.map((p) => [p.id, p]));
 
     let subtotal = 0;
-    const lines: { productId: string; title: string; price: number; qty: number }[] = [];
+    const lines: { productId: string; title: string; price: number; qty: number; size?: string | null }[] = [];
 
     for (const i of wanted) {
-      const p = byId.get(i.id);
+      const p = byId.get(i.productId || i.id);
       if (!p) {
         return NextResponse.json(
           { ok: false, message: "A product in your cart is no longer available." },
@@ -96,7 +97,7 @@ export async function POST(req: NextRequest) {
         );
       }
       subtotal += p.price * i.qty;
-      lines.push({ productId: p.id, title: p.title, price: p.price, qty: i.qty });
+      lines.push({ productId: p.id, title: p.title, price: p.price, qty: i.qty, size: i.size || null });
     }
 
     const total = subtotal; // UPI: no COD charge, free shipping

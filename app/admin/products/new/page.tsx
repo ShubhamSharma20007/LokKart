@@ -312,7 +312,26 @@ export default function AdminProductsPage() {
                           )}
                         </span>
                       </TableCell>
-                      <TableCell className="max-w-64 truncate font-medium">{p.title}</TableCell>
+                      <TableCell className="max-w-64 font-medium">
+                        <div className="truncate">{p.title}</div>
+                        {p.sizes && p.sizes.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {p.sizes.slice(0, 5).map((s) => (
+                              <span
+                                key={s}
+                                className="inline-block rounded border bg-muted/60 px-1.5 py-0.5 text-[10px] font-semibold text-foreground"
+                              >
+                                {s}
+                              </span>
+                            ))}
+                            {p.sizes.length > 5 && (
+                              <span className="text-[10px] text-muted-foreground self-center">
+                                +{p.sizes.length - 5}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Badge variant="secondary" className="text-xs font-normal">
                           {p.category}

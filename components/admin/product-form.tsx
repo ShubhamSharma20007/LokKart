@@ -5,9 +5,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Field, FormError, SubmitButton } from "@/components/formField";
 import { MultiImageUpload } from "@/components/multi-image-upload";
 import { auth } from "@/hooks/useFirebaseAuth";
@@ -93,6 +94,20 @@ export function ProductForm({
   const [widthCm, setWidthCm] = useState(product ? String(product.widthCm) : "20");
   const [heightCm, setHeightCm] = useState(product ? String(product.heightCm) : "3");
   const [selectedPreset, setSelectedPreset] = useState<string | null>(product ? null : "tshirt");
+  const [sizes, setSizes] = useState<string[]>(product?.sizes || []);
+  const [customSize, setCustomSize] = useState("");
+
+  const toggleSize = (s: string) => {
+    setSizes((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
+  };
+
+  const addCustomSize = () => {
+    const trimmed = customSize.trim();
+    if (trimmed && !sizes.includes(trimmed)) {
+      setSizes((prev) => [...prev, trimmed]);
+      setCustomSize("");
+    }
+  };
   const handled = useRef<FormState | null>(null);
 
   const volG = Math.round((Number(lengthCm || 0) * Number(widthCm || 0) * Number(heightCm || 0)) / 5);
@@ -291,6 +306,140 @@ export function ProductForm({
       <Field label="Description" name="description" error={errors.description}>
         <Textarea id="description" name="description" defaultValue={v("description")} aria-invalid={!!errors.description} />
       </Field>
+
+      {/* Available Sizes Section */}
+      <div className="space-y-3 rounded-xl border p-4 bg-muted/10">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Available Sizes</p>
+            <p className="text-xs text-muted-foreground">
+              Select or add sizes (XS, S, M, L, XL, XXL, 3XL, Waist 28-40). Leave empty if not applicable.
+            </p>
+          </div>
+          {sizes.length > 0 ? (
+            <Badge variant="secondary" className="text-xs font-semibold">
+              {sizes.length} {sizes.length === 1 ? "size" : "sizes"} enabled
+            </Badge>
+          ) : (
+            <span className="text-[11px] text-muted-foreground">No sizes (single piece)</span>
+          )}
+        </div>
+
+        {/* Quick Presets */}
+        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+          <span className="text-[11px] font-medium text-muted-foreground mr-1">Presets:</span>
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            className="text-[11px] h-6"
+            onClick={() => setSizes(["XS", "S", "M", "L", "XL", "XXL", "3XL"])}
+          >
+            Topwear (XS-3XL)
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            className="text-[11px] h-6"
+            onClick={() => setSizes(["28", "30", "32", "34", "36", "38", "40"])}
+          >
+            Jeans / Waist (28-40)
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            className="text-[11px] h-6"
+            onClick={() => setSizes(["Free Size"])}
+          >
+            Free Size
+          </Button>
+          {sizes.length > 0 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              className="text-[11px] h-6 text-destructive hover:bg-destructive/10"
+              onClick={() => setSizes([])}
+            >
+              Clear all
+            </Button>
+          )}
+        </div>
+
+        {/* Common size chips toggle */}
+        <div className="space-y-1.5 pt-1">
+          <p className="text-[11px] font-medium text-muted-foreground">Click to toggle sizes:</p>
+          <div className="flex flex-wrap gap-1.5">
+            {["XS", "S", "M", "L", "XL", "XXL", "3XL", "28", "30", "32", "34", "36", "38", "40", "Free Size"].map((s) => {
+              const active = sizes.includes(s);
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => toggleSize(s)}
+                  className={cn(
+                    "h-7 min-w-8 px-2.5 rounded-md text-xs font-semibold transition-all border select-none",
+                    active
+                      ? "border-primary bg-primary text-primary-foreground shadow-2xs"
+                      : "border-border bg-background hover:bg-muted text-foreground"
+                  )}
+                >
+                  {s}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Custom size input */}
+        <div className="flex items-center gap-2 pt-1 max-w-sm">
+          <Input
+            value={customSize}
+            onChange={(e) => setCustomSize(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addCustomSize();
+              }
+            }}
+            placeholder="Custom size (e.g. 42, 44, UK 8, 3-4Y)"
+            className="h-8 text-xs"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs shrink-0"
+            onClick={addCustomSize}
+          >
+            + Add size
+          </Button>
+        </div>
+
+        {/* Selected sizes pills */}
+        {sizes.length > 0 && (
+          <div className="pt-1 flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] font-medium text-muted-foreground">Selected:</span>
+            {sizes.map((s) => (
+              <Badge key={s} variant="secondary" className="gap-1 pl-2 pr-1 py-0.5 text-xs font-semibold">
+                {s}
+                <button
+                  type="button"
+                  onClick={() => toggleSize(s)}
+                  className="rounded-full hover:bg-muted-foreground/20 p-0.5 text-muted-foreground hover:text-foreground"
+                  title={`Remove ${s}`}
+                >
+                  <X className="size-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        <input type="hidden" name="sizesJson" value={JSON.stringify(sizes)} />
+      </div>
 
       <div className="space-y-1.5">
         <p className="text-sm font-medium">Product images (Up to 3)</p>

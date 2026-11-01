@@ -1,7 +1,16 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import type { RootState } from "../store";
 
-export type CartItem = { id: string; title: string; price: number; mrp: number; stock: number; qty: number };
+export type CartItem = {
+  id: string;
+  title: string;
+  price: number;
+  mrp: number;
+  stock: number;
+  qty: number;
+  size?: string;
+  productId?: string;
+};
 type CartState = { items: CartItem[]; hydrated: boolean };
 
 const clamp = (qty: number, stock: number) => Math.max(1, Math.min(qty, stock));

@@ -201,7 +201,7 @@ export function CheckoutForm() {
   const subtotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
   const mrpTotal = items.reduce((sum, i) => sum + i.mrp * i.qty, 0);
 
-  const cartLines = items.map((i) => ({ id: i.id, qty: i.qty }));
+  const cartLines = items.map((i) => ({ id: i.productId || i.id, qty: i.qty }));
   const cod = useCodEstimate(form.pincode, cartLines, payment === "COD");
   const codCharges = payment === "COD" && cod.status === "ok" ? cod.data.total : 0;
   const grandTotal = subtotal + codCharges;
@@ -471,7 +471,7 @@ export function CheckoutForm() {
         token,
         payment: "COD",
         address: form,
-        items: items.map((i) => ({ id: i.id, qty: i.qty })),
+        items: items.map((i) => ({ id: i.productId || i.id, qty: i.qty, size: i.size })),
       });
 
       if (!res.ok) {
@@ -506,7 +506,7 @@ export function CheckoutForm() {
         body: JSON.stringify({
           token,
           address: form,
-          items: items.map((i) => ({ id: i.id, qty: i.qty })),
+          items: items.map((i) => ({ id: i.productId || i.id, qty: i.qty, size: i.size })),
         }),
       });
 
@@ -1050,9 +1050,15 @@ export function CheckoutForm() {
             <ul className="space-y-1.5 text-sm">
               {items.map((i) => (
                 <li key={i.id} className="flex justify-between gap-3">
-                  <span className="line-clamp-1">
-                    {i.title} <span className="text-muted-foreground">× {i.qty}</span>
-                  </span>
+                  <div className="line-clamp-1">
+                    <span>{i.title}</span>
+                    {i.size && (
+                      <span className="ml-1.5 inline-block text-[11px] font-semibold text-primary">
+                        ({i.size})
+                      </span>
+                    )}
+                    <span className="text-muted-foreground"> × {i.qty}</span>
+                  </div>
                   <span className="shrink-0">{formatINR(i.price * i.qty)}</span>
                 </li>
               ))}

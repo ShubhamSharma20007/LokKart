@@ -163,9 +163,10 @@ export async function getCartShippingInfo(
   const cart = new Map<string, number>();
   if (Array.isArray(raw)) {
     for (const r of raw.slice(0, 50)) {
-      const { id, qty } = (r ?? {}) as { id?: unknown; qty?: unknown };
-      if (typeof id === "string" && id && Number.isInteger(qty) && (qty as number) >= 1 && (qty as number) <= 100000) {
-        cart.set(id, (cart.get(id) ?? 0) + (qty as number));
+      const { id, qty, productId } = (r ?? {}) as { id?: unknown; qty?: unknown; productId?: unknown };
+      const targetId = typeof productId === "string" && productId ? productId : (typeof id === "string" ? id : "");
+      if (targetId && Number.isInteger(qty) && (qty as number) >= 1 && (qty as number) <= 100000) {
+        cart.set(targetId, (cart.get(targetId) ?? 0) + (qty as number));
       }
     }
   }

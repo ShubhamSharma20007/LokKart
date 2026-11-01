@@ -17,7 +17,7 @@ type Input = {
   payment: "COD" | "UPI";
   utr?: string;
   address: { name: string; phone: string; address: string; city: string; state: string; pincode: string };
-  items: { id: string; qty: number }[];
+  items: { id: string; qty: number; size?: string }[];
 };
 type Result =
   | { ok: true; orderId: string }
@@ -34,7 +34,7 @@ export type MyOrder = {
   paymentStatus: "PENDING" | "PAID" | "FAILED";
   createdAt: string;
   address: { address: string; city: string; state: string; pincode: string };
-  items: { id: string; productId: string; title: string; qty: number; price: number }[];
+  items: { id: string; productId: string; title: string; qty: number; price: number; size?: string | null }[];
   nimbusOrderId?: string | null;
   awb?: string | null;
   courierName?: string | null;
@@ -186,7 +186,7 @@ export async function placeOrder(input: Input): Promise<Result> {
 
   let subtotal = 0;
   const ship: ShipItem[] = [];
-  const lines: { productId: string; title: string; price: number; qty: number }[] = [];
+  const lines: { productId: string; title: string; price: number; qty: number; size?: string | null }[] = [];
   // Also keep a richer version for NimbusPost payload
   const nimbusItems: { name: string; sku: string; units: number; selling_price: string; weightG: number; lengthCm: number; widthCm: number; heightCm: number }[] = [];
 
@@ -196,10 +196,10 @@ export async function placeOrder(input: Input): Promise<Result> {
     if (p.stock < i.qty) return { ok: false, message: `Only ${p.stock} left for "${p.title}".` };
     subtotal += p.price * i.qty;
     ship.push({ qty: i.qty, weightG: p.weightG, lengthCm: p.lengthCm, widthCm: p.widthCm, heightCm: p.heightCm });
-    lines.push({ productId: p.id, title: p.title, price: p.price, qty: i.qty });
+    lines.push({ productId: p.id, title: p.title, price: p.price, qty: i.qty, size: i.size || null });
     nimbusItems.push({
-      name: p.title.slice(0, 100),
-      sku: p.id.slice(0, 50),
+      name: `${p.title}${i.size ? ` (${i.size})` : ""}`.slice(0, 100),
+      sku: `${p.id}${i.size ? `-${i.size}` : ""}`.slice(0, 50),
       units: i.qty,
       selling_price: String(p.price),
       weightG: p.weightG,
@@ -379,7 +379,7 @@ export async function getMyOrders(idToken: string): Promise<MyOrdersResult> {
         courierName: true,
         trackingUrl: true,
         labelUrl: true,
-        items: { select: { id: true, productId: true, title: true, qty: true, price: true } },
+        items: { select: { id: true, productId: true, title: true, qty: true, price: true, size: true } },
       },
     });
 

@@ -43,8 +43,17 @@ export default function CartPage() {
                 <Card>
                   <CardContent className="flex flex-wrap items-center gap-4">
                     <div className="min-w-0 flex-1">
-                      <Link href={`/products/${i.id}`} className="font-medium hover:underline">{i.title}</Link>
-                      <p className="text-sm text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link href={`/products/${i.productId || i.id}`} className="font-medium hover:underline">
+                          {i.title}
+                        </Link>
+                        {i.size && (
+                          <Badge variant="secondary" className="h-5 px-1.5 text-[11px] font-semibold">
+                            Size: {i.size}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-0.5">
                         {formatINR(i.price)} each <span className="line-through">{formatINR(i.mrp)}</span>
                       </p>
                       {i.qty >= i.stock && <p className="text-xs font-medium text-primary">Maximum available quantity</p>}

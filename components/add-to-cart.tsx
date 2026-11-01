@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
@@ -10,7 +11,9 @@ import type { StoreProduct } from "@/lib/catalog";
 import { useMounted } from "@/lib/use-mounted";
 import { cn } from "@/lib/utils";
 
-type CartProduct = Pick<StoreProduct, "id" | "title" | "price" | "mrp" | "stock">;
+type CartProduct = Pick<StoreProduct, "id" | "title" | "price" | "mrp" | "stock"> & {
+  sizes?: string[];
+};
 
 export function AddToCart({
   product,
@@ -25,8 +28,16 @@ export function AddToCart({
 }) {
   const dispatch = useAppDispatch();
   const router = useRouter();
-  const inCart = useAppSelector((s) => s.cart.items.find((i) => i.id === product.id));
   const mounted = useMounted();
+  const hasSizes = !!product.sizes && product.sizes.length > 0;
+  
+  // Default to first size if available on detail page, or let user pick
+  const [selectedSize, setSelectedSize] = useState<string | null>(
+    hasSizes ? product.sizes![0] : null
+  );
+
+  const cartItemId = selectedSize ? `${product.id}-${selectedSize}` : product.id;
+  const inCart = useAppSelector((s) => s.cart.items.find((i) => i.id === cartItemId));
 
   if (product.stock < 1) {
     if (iconOnly) {
@@ -48,19 +59,44 @@ export function AddToCart({
     );
   }
 
-  const put = () =>
-    dispatch(addItem({ id: product.id, title: product.title, price: product.price, mrp: product.mrp, stock: product.stock }));
+  const put = (sizeToUse: string | null = selectedSize) => {
+    const id = sizeToUse ? `${product.id}-${sizeToUse}` : product.id;
+    dispatch(
+      addItem({
+        id,
+        productId: product.id,
+        title: product.title,
+        price: product.price,
+        mrp: product.mrp,
+        stock: product.stock,
+        size: sizeToUse || undefined,
+      })
+    );
+  };
 
   const add = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    // If on listing / compact card and product has sizes, direct user to detail page to pick size
+    if ((compact || iconOnly) && hasSizes) {
+      router.push(`/products/${product.id}`);
+      return;
+    }
+
+    if (hasSizes && !selectedSize) {
+      toast.error("Please select a size first");
+      return;
+    }
+
     if (inCart && inCart.qty >= product.stock) {
       toast.info("You have all the available stock in your cart.", { id: `max-${product.id}` });
       return;
     }
+
     put();
-    toast.success("Added to cart", {
-      id: `add-${product.id}`,
+    toast.success(selectedSize ? `Added to cart (Size: ${selectedSize})` : "Added to cart", {
+      id: `add-${cartItemId}`,
       description: product.title,
       action: { label: "View cart", onClick: () => router.push("/cart") },
     });
@@ -85,31 +121,72 @@ export function AddToCart({
   }
 
   return (
-    <div className="flex w-full gap-2">
-      <Button
-        onClick={add}
-        variant={buyNow ? "outline" : "default"}
-        className={cn(
-          "flex-1 font-semibold",
-          compact
-            ? "h-7 sm:h-8 text-[11px] sm:text-xs rounded-lg bg-foreground text-background hover:bg-foreground/90 gap-1 px-2 sm:px-2.5 whitespace-nowrap"
-            : "h-9"
-        )}
-      >
-        <ShoppingCart className={compact ? "size-3.5" : "size-4"} aria-hidden />
-        {mounted && inCart ? `In cart (${inCart.qty})` : "Add to cart"}
-      </Button>
-      {buyNow && (
-        <Button
-          className={cn("flex-1", compact ? "h-8 text-xs rounded-lg" : "h-9")}
-          onClick={() => {
-            if (!inCart) put();
-            router.push("/checkout");
-          }}
-        >
-          Buy now
-        </Button>
+    <div className="w-full space-y-3">
+      {/* Size Picker for Product Detail View */}
+      {!compact && hasSizes && (
+        <div className="space-y-2 pt-1 pb-1">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-foreground">
+              Select Size:{" "}
+              <strong className="text-primary font-bold">{selectedSize || "Please select"}</strong>
+            </span>
+            <span className="text-[11px] text-muted-foreground">Standard regular fit</span>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {product.sizes!.map((s) => {
+              const isSelected = selectedSize === s;
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setSelectedSize(s)}
+                  className={cn(
+                    "h-9 min-w-11 px-3 rounded-lg text-xs font-bold transition-all border select-none",
+                    isSelected
+                      ? "border-primary bg-primary text-primary-foreground ring-2 ring-primary/20 shadow-xs scale-102"
+                      : "border-border bg-card hover:border-primary/50 hover:bg-muted text-foreground"
+                  )}
+                >
+                  {s}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       )}
+
+      {/* Buttons */}
+      <div className="flex w-full gap-2">
+        <Button
+          onClick={add}
+          variant={buyNow ? "outline" : "default"}
+          className={cn(
+            "flex-1 font-semibold",
+            compact
+              ? "h-7 sm:h-8 text-[11px] sm:text-xs rounded-lg bg-foreground text-background hover:bg-foreground/90 gap-1 px-2 sm:px-2.5 whitespace-nowrap"
+              : "h-9"
+          )}
+        >
+          <ShoppingCart className={compact ? "size-3.5" : "size-4"} aria-hidden />
+          {mounted && inCart ? `In cart (${inCart.qty})` : "Add to cart"}
+        </Button>
+        {buyNow && (
+          <Button
+            className={cn("flex-1", compact ? "h-8 text-xs rounded-lg" : "h-9")}
+            onClick={() => {
+              if (hasSizes && !selectedSize) {
+                toast.error("Please select a size first");
+                return;
+              }
+              if (!inCart) put();
+              router.push("/checkout");
+            }}
+          >
+            Buy now
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

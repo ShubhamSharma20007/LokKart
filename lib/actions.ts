@@ -87,11 +87,19 @@ export async function createProduct(_prev: FormState, fd: FormData): Promise<For
 
   const imagesJson = String(fd.get("imagesJson") ?? "[]");
   const imageFileIdsJson = String(fd.get("imageFileIdsJson") ?? "[]");
+  const sizesJson = String(fd.get("sizesJson") ?? "[]");
   let images: string[] = [];
   let imageFileIds: string[] = [];
+  let sizes: string[] = [];
   try {
     images = JSON.parse(imagesJson);
     imageFileIds = JSON.parse(imageFileIdsJson);
+  } catch {}
+  try {
+    const parsedSizes = JSON.parse(sizesJson);
+    if (Array.isArray(parsedSizes)) {
+      sizes = parsedSizes.map(String).map((x) => x.trim()).filter(Boolean);
+    }
   } catch {}
 
   if (images.length === 0 && s.values.imageUrl) {
@@ -116,6 +124,7 @@ export async function createProduct(_prev: FormState, fd: FormData): Promise<For
         imageFileId: primaryFileId,
         images: images,
         imageFileIds: imageFileIds,
+        sizes: sizes,
         basePrice: basePrice,
         shippingBuffer: shippingBuffer,
       },
@@ -314,11 +323,19 @@ export async function updateProduct(_prev: FormState, fd: FormData): Promise<For
 
   const imagesJson = String(fd.get("imagesJson") ?? "[]");
   const imageFileIdsJson = String(fd.get("imageFileIdsJson") ?? "[]");
+  const sizesJson = String(fd.get("sizesJson") ?? "[]");
   let images: string[] = [];
   let imageFileIds: string[] = [];
+  let sizes: string[] = [];
   try {
     images = JSON.parse(imagesJson);
     imageFileIds = JSON.parse(imageFileIdsJson);
+  } catch {}
+  try {
+    const parsedSizes = JSON.parse(sizesJson);
+    if (Array.isArray(parsedSizes)) {
+      sizes = parsedSizes.map(String).map((x) => x.trim()).filter(Boolean);
+    }
   } catch {}
 
   // Fallback if imagesJson not provided
@@ -373,6 +390,7 @@ export async function updateProduct(_prev: FormState, fd: FormData): Promise<For
         imageFileId: primaryFileId,
         images: images,
         imageFileIds: imageFileIds,
+        sizes: sizes,
       },
     });
   } catch (err) {
