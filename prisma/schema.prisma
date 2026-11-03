@@ -49,7 +49,7 @@ model Product {
   title           String
   description     String
   category        String
-price           Int
+  price           Int
   mrp             Int
   stock           Int
   imageUrl        String?

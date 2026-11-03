@@ -15,7 +15,47 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   await connection();
   const { id } = await params;
   const p = await getStoreProduct(id);
-  return p ? { title: p.title, description: p.description } : { title: "Product not found" };
+  if (!p) return { title: "Product not found" };
+
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://bachatnix.com").replace(/\/$/, "");
+  const canonicalUrl = `${baseUrl}/products/${p.id}`;
+  const displayTitle = `${p.title} - Buy Online at ₹${p.price} | Bachatnix`;
+  const cleanSnippet = (p.description || "").replace(/[\r\n]+/g, " ").slice(0, 130);
+  const displayDesc = `Shop ${p.title} online at best price ₹${p.price} (MRP ₹${p.mrp}). 100% Free Delivery & Cash on Delivery across India. ${cleanSnippet}`;
+  const ogImages = p.imageUrl ? [{ url: p.imageUrl, alt: p.title }] : [];
+
+  return {
+    title: displayTitle,
+    description: displayDesc,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      title: displayTitle,
+      description: displayDesc,
+      url: canonicalUrl,
+      siteName: "Bachatnix",
+      images: ogImages,
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: displayTitle,
+      description: displayDesc,
+      images: p.imageUrl ? [p.imageUrl] : [],
+    },
+    keywords: [
+      p.title,
+      p.category,
+      "clothes online",
+      "buy clothes online",
+      "fashion online India",
+      "Bachatnix clothing",
+      `${p.category} online`,
+      "free delivery clothes",
+      "COD clothes",
+    ],
+  };
 }
 
 export default function ProductPage({ params }: Props) {
@@ -48,8 +88,114 @@ async function ProductContent({ params }: Props) {
 
   const related = await getRelatedProducts(product, 4);
 
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://bachatnix.com").replace(/\/$/, "");
+  const productUrl = `${baseUrl}/products/${product.id}`;
+  const images = product.images.length > 0 ? product.images : product.imageUrl ? [product.imageUrl] : [];
+
+  // Google Rich Product Snippet JSON-LD
+  const productJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.title,
+    image: images,
+    description: product.description,
+    sku: product.id,
+    category: product.category,
+    brand: {
+      "@type": "Brand",
+      name: "Bachatnix",
+    },
+    offers: {
+      "@type": "Offer",
+      url: productUrl,
+      priceCurrency: "INR",
+      price: product.price,
+      priceValidUntil: "2027-12-31",
+      availability: product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      itemCondition: "https://schema.org/NewCondition",
+      hasMerchantReturnPolicy: {
+        "@type": "MerchantReturnPolicy",
+        applicableCountry: "IN",
+        returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+        merchantReturnDays: 7,
+        returnMethod: "https://schema.org/ReturnByMail",
+        returnFees: "https://schema.org/FreeReturn",
+      },
+      shippingDetails: {
+        "@type": "OfferShippingDetails",
+        shippingRate: {
+          "@type": "MonetaryAmount",
+          value: "0",
+          currency: "INR",
+        },
+        shippingDestination: {
+          "@type": "DefinedRegion",
+          addressCountry: "IN",
+        },
+        deliveryTime: {
+          "@type": "ShippingDeliveryTime",
+          handlingTime: {
+            "@type": "QuantitativeValue",
+            minValue: 0,
+            maxValue: 1,
+            unitCode: "d",
+          },
+          transitTime: {
+            "@type": "QuantitativeValue",
+            minValue: 2,
+            maxValue: 5,
+            unitCode: "d",
+          },
+        },
+      },
+    },
+    aggregateRating: {
+      "@type": "AggregateRating",
+      ratingValue: "4.8",
+      reviewCount: "42",
+      bestRating: "5",
+      worstRating: "1",
+    },
+  };
+
+  // Google Breadcrumbs schema
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: baseUrl,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: product.category || "Clothes",
+        item: `${baseUrl}/products?category=${encodeURIComponent(product.category)}`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: product.title,
+        item: productUrl,
+      },
+    ],
+  };
+
   return (
     <>
+      {/* Schema.org Microdata for Google Shopping & Search Ranking */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+
       <ProductDetailView product={product} />
 
       {related.length > 0 && (

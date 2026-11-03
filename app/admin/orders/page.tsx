@@ -15,6 +15,7 @@ import {
   ShoppingBag,
   TrendingUp,
   Truck,
+  Printer,
   X,
   CheckCircle2,
 } from "lucide-react";
@@ -400,30 +401,32 @@ export default function AdminOrdersPage() {
                             {dateFmt.format(new Date(o.createdAt))}
                           </p>
                           {o.awb ? (
-                            <div className="mt-2 space-y-1">
-                              <span className="inline-flex items-center gap-1 rounded bg-blue-500/10 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-blue-700 dark:text-blue-300">
+                            <div className="mt-2 space-y-2">
+                              <span className="inline-flex items-center gap-1 rounded bg-blue-500/10 px-2 py-0.5 font-mono text-[11px] font-semibold text-blue-700 dark:text-blue-300">
                                 <Truck className="size-3" />
                                 {o.courierName || "Courier"}: {o.awb}
                               </span>
-                              <div className="flex items-center gap-2 text-xs">
-                                {o.labelUrl && (
+                              <div className="flex flex-col gap-1.5 items-start">
+                                {o.labelUrl ? (
                                   <a
                                     href={o.labelUrl}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="font-medium text-primary underline underline-offset-2 hover:opacity-80"
+                                    className="inline-flex items-center gap-1.5 h-7 rounded-md px-2.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs transition-colors"
                                   >
-                                    Print Label
+                                    <Printer className="size-3.5" /> Download / Print Label
                                   </a>
+                                ) : (
+                                  <span className="text-[11px] text-muted-foreground">Label pending</span>
                                 )}
                                 {o.trackingUrl && (
                                   <a
                                     href={o.trackingUrl}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="font-medium text-primary underline underline-offset-2 hover:opacity-80"
+                                    className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-primary transition-colors underline underline-offset-2"
                                   >
-                                    Live Track &rarr;
+                                    <ExternalLink className="size-3" /> Live Tracking &rarr;
                                   </a>
                                 )}
                               </div>
@@ -433,19 +436,24 @@ export default function AdminOrdersPage() {
                               <div className="mt-2">
                                 <Button
                                   size="xs"
-                                  variant="outline"
+                                  variant="default"
                                   disabled={busy || dispatchingId === o.id}
                                   onClick={() => handleDispatch(o)}
-                                  className="h-7 text-xs font-semibold hover:bg-primary hover:text-primary-foreground transition-colors"
+                                  className="h-7 text-xs font-semibold gap-1.5 shadow-2xs"
                                 >
                                   {dispatchingId === o.id ? (
                                     <>
-                                      <Loader2 className="mr-1 size-3 animate-spin" /> Dispatching...
+                                      <Loader2 className="size-3 animate-spin" /> Booking Courier...
                                     </>
                                   ) : (
-                                    "📦 Book Courier"
+                                    <>
+                                      <Package className="size-3.5" /> Book Courier
+                                    </>
                                   )}
                                 </Button>
+                                <p className="text-[10px] text-muted-foreground mt-1">
+                                  Click to generate AWB &amp; Label
+                                </p>
                               </div>
                             )
                           )}

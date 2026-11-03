@@ -12,10 +12,38 @@ import { SORTS, listingHref, parseListingParams, type ListingParams } from "@/li
 import { formatINR } from "@/lib/products";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = {
-  title: "All products",
-  description: "Browse trendy clothing, daily fashion, and ethnic wear at prices well below MRP.",
-};
+export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
+  const sp = await searchParams;
+  const category = typeof sp.category === "string" ? sp.category : undefined;
+  const q = typeof sp.q === "string" ? sp.q : undefined;
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://bachatnix.com").replace(/\/$/, "");
+
+  if (category) {
+    const title = `${category} Online - Buy ${category} Under MRP | Bachatnix`;
+    const desc = `Browse best collection of ${category} online at Bachatnix. 100% Free Shipping & Cash on Delivery across India.`;
+    const categoryUrl = `${baseUrl}/products?category=${encodeURIComponent(category)}`;
+    return {
+      title,
+      description: desc,
+      alternates: { canonical: categoryUrl },
+      openGraph: { title, description: desc, url: categoryUrl, siteName: "Bachatnix" },
+    };
+  }
+
+  if (q) {
+    return {
+      title: `Search: "${q}" | Bachatnix`,
+      description: `Explore trending clothes matching "${q}".`,
+      robots: { index: false, follow: true },
+    };
+  }
+
+  return {
+    title: "Buy Clothes Online - Men's Fashion & Daily Wear Collection",
+    description: "Browse trendy clothing, stylish men's shirts, cotton t-shirts, and daily fashion at prices well below MRP with Free Shipping and Cash on Delivery.",
+    alternates: { canonical: `${baseUrl}/products` },
+  };
+}
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
