@@ -477,9 +477,9 @@ export function ProductForm({
             variant="outline"
             size="xs"
             className="text-[11px] h-6"
-            onClick={() => setColors(["Black", "White", "Navy Blue", "Grey"])}
+            onClick={() => setColors(["Black", "White", "Charcoal", "Grey"])}
           >
-            Classic (Black, White, Navy, Grey)
+            Classic (Black, White, Charcoal, Grey)
           </Button>
           <Button
             type="button"

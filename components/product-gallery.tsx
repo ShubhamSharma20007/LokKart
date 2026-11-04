@@ -1,10 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { categoryIcons } from "@/components/category-icon";
 import { imageSrc } from "@/lib/product-image";
-import { discountPct } from "@/lib/products";
 import type { StoreProduct } from "@/lib/catalog";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +14,7 @@ export function ProductGallery({
   activeIndex?: number;
   onIndexChange?: (idx: number) => void;
 }) {
-  const images: string[] =
+  const rawImages: string[] =
     product.images && product.images.length > 0
       ? product.images
       : product.imageUrl
@@ -26,105 +23,75 @@ export function ProductGallery({
 
   const [internalIndex, setInternalIndex] = useState(0);
   const activeIndex = controlledIndex !== undefined ? controlledIndex : internalIndex;
-  const setActiveIndex = (updater: number | ((prev: number) => number)) => {
-    const nextVal = typeof updater === "function" ? updater(activeIndex) : updater;
+
+  const setActiveIndex = (idx: number) => {
     if (controlledOnChange) {
-      controlledOnChange(nextVal);
+      controlledOnChange(idx);
     } else {
-      setInternalIndex(nextVal);
+      setInternalIndex(idx);
     }
   };
 
-  const prevImage = () => {
-    setActiveIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
-  };
+  const currentImage = rawImages[activeIndex] || product.imageUrl;
 
-  const nextImage = () => {
-    setActiveIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
-  };
-
-  const currentImage = images[activeIndex];
-  const discount = discountPct(product);
-  const Icon = categoryIcons[product.category];
+  // Make sure we have 3 thumbnails to show in mobile & desktop grid
+  let displayThumbnails = [...rawImages];
+  if (displayThumbnails.length === 0 && product.imageUrl) {
+    displayThumbnails = [product.imageUrl, product.imageUrl, product.imageUrl];
+  } else if (displayThumbnails.length === 1) {
+    displayThumbnails = [displayThumbnails[0], displayThumbnails[0], displayThumbnails[0]];
+  } else if (displayThumbnails.length === 2) {
+    displayThumbnails = [displayThumbnails[0], displayThumbnails[1], displayThumbnails[0]];
+  }
+  displayThumbnails = displayThumbnails.slice(0, 3);
 
   return (
-    <div className="space-y-3 mx-auto w-full max-w-[420px] md:sticky md:top-20 md:self-start">
-      {/* Main Large Image Container */}
-      <div className="group relative flex aspect-square max-h-[440px] w-full items-center justify-center overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 to-primary/[0.03] text-primary/60 shadow-xs">
+    <div className="flex flex-col md:flex-row gap-3.5 sm:gap-4 w-full">
+      {/* ── Main Large Image Box (On mobile: order-1 on top, on desktop: order-2 on right) ── */}
+      <div className="relative aspect-square w-full overflow-hidden rounded-[20px] bg-[#F0EEED] p-6 sm:p-10 flex items-center justify-center order-1 md:order-2 md:flex-1">
         {currentImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={imageSrc(currentImage, 1000)}
-            alt={`${product.title} - Photo ${activeIndex + 1}`}
-            loading="eager"
-            decoding="async"
-            className="size-full object-contain p-2 transition-transform duration-300 group-hover:scale-105"
+            alt={product.title}
+            className="size-full object-contain transition-transform duration-300"
           />
         ) : (
-          <Icon className="size-24" aria-hidden />
-        )}
-
-        {/* Discount Badge */}
-        {discount > 0 && (
-          <span className="absolute top-3 right-3 rounded-md bg-[#fcc618] px-2 py-0.5 text-xs font-black text-black shadow-xs">
-            {discount}% off
-          </span>
-        )}
-
-        {/* Left / Right Navigation Arrows (only if multiple images) */}
-        {images.length > 1 && (
-          <>
-            <button
-              type="button"
-              onClick={prevImage}
-              aria-label="Previous image"
-              className="absolute left-3 top-1/2 -translate-y-1/2 grid size-9 place-items-center rounded-full bg-background/80 text-foreground backdrop-blur-sm shadow-md transition-all opacity-0 group-hover:opacity-100 hover:bg-background focus-visible:opacity-100"
-            >
-              <ChevronLeft className="size-5" />
-            </button>
-            <button
-              type="button"
-              onClick={nextImage}
-              aria-label="Next image"
-              className="absolute right-3 top-1/2 -translate-y-1/2 grid size-9 place-items-center rounded-full bg-background/80 text-foreground backdrop-blur-sm shadow-md transition-all opacity-0 group-hover:opacity-100 hover:bg-background focus-visible:opacity-100"
-            >
-              <ChevronRight className="size-5" />
-            </button>
-
-            {/* Photo Counter */}
-            <span className="absolute bottom-3 right-3 rounded-md bg-black/60 px-2 py-1 text-xs font-medium text-white backdrop-blur-sm">
-              {activeIndex + 1} / {images.length}
-            </span>
-          </>
+          <div className="size-32 rounded-xl bg-black/5" />
         )}
       </div>
 
-      {/* Thumbnail Bar (Only shown if more than 1 image) */}
-      {images.length > 1 && (
-        <div className="flex items-center gap-3 overflow-x-auto pb-1" role="tablist" aria-label="Product thumbnails">
-          {images.map((img, idx) => {
-            const isActive = idx === activeIndex;
-            return (
-              <button
-                key={`${img}-${idx}`}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                onClick={() => setActiveIndex(idx)}
-                className={cn(
-                  "relative aspect-square size-14 sm:size-16 shrink-0 overflow-hidden rounded-lg border-2 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  isActive
-                    ? "border-primary ring-2 ring-primary/20 scale-105"
-                    : "border-border/60 hover:border-primary/50 opacity-75 hover:opacity-100"
-                )}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={imageSrc(img, 150)} alt="" className="size-full object-cover" />
-              </button>
-            );
-          })}
-        </div>
-      )}
+      {/* ── 3 Thumbnails (On mobile: order-2 below main photo in 3-col grid, on desktop: order-1 vertical column on left) ── */}
+      <div className="grid grid-cols-3 md:flex md:flex-col gap-3 sm:gap-3.5 shrink-0 order-2 md:order-1 w-full md:w-auto">
+        {displayThumbnails.map((img, idx) => {
+          const isActive = idx === (activeIndex % displayThumbnails.length);
+          return (
+            <button
+              key={`${img}-${idx}`}
+              type="button"
+              onClick={() => setActiveIndex(idx)}
+              aria-label={`View photo ${idx + 1}`}
+              className={cn(
+                "relative aspect-square w-full md:w-[130px] lg:w-[140px] md:h-[130px] lg:h-[140px] overflow-hidden rounded-[16px] sm:rounded-[20px] bg-[#F0EEED] p-2.5 sm:p-3 transition-all cursor-pointer flex items-center justify-center select-none",
+                isActive
+                  ? "border-2 border-black shadow-xs scale-[1.02]"
+                  : "border-2 border-transparent hover:border-black/20 opacity-80 hover:opacity-100"
+              )}
+            >
+              {img ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={imageSrc(img, 240)}
+                  alt=""
+                  className="size-full object-contain"
+                />
+              ) : (
+                <div className="size-full bg-black/5 rounded-lg" />
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

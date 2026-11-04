@@ -115,7 +115,7 @@ export function AddToCart({
           "size-10 shrink-0 grid place-items-center rounded-xl text-white shadow-sm transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           mounted && inCart
             ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20"
-            : "bg-blue-600 hover:bg-blue-700 shadow-blue-500/25"
+            : "bg-black hover:bg-black/80 shadow-black/25"
         )}
       >
         {mounted && inCart ? <Check className="size-4 stroke-[2.5]" /> : <ShoppingCart className="size-4" />}

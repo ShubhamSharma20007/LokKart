@@ -16,6 +16,7 @@ type Input = {
   token: string;
   payment: "COD" | "UPI";
   utr?: string;
+  promoCode?: string;
   address: { name: string; phone: string; address: string; city: string; state: string; pincode: string };
   items: { id: string; qty: number; size?: string; color?: string }[];
 };
@@ -58,6 +59,41 @@ export type SavedAddress = {
   pincode: string;
   isDefault?: boolean;
 };
+
+// Check if user is eligible for 20% First Order Discount / Promo Code
+export async function checkFirstOrderEligibility(
+  token: string
+): Promise<{ isFirstOrder: boolean; discountPercent: number; promoCode: string }> {
+  try {
+    const decoded = await verifyFirebaseToken(token).catch(() => null);
+    if (!decoded || !decoded.email) return { isFirstOrder: false, discountPercent: 0, promoCode: "WELCOME20" };
+
+    const user = await prisma.user.findUnique({ where: { email: decoded.email } });
+    if (!user) return { isFirstOrder: false, discountPercent: 0, promoCode: "WELCOME20" };
+
+    const pastOrdersCount = await prisma.order.count({ where: { userId: user.id } });
+    if (pastOrdersCount > 0) {
+      return { isFirstOrder: false, discountPercent: 0, promoCode: "WELCOME20" };
+    }
+
+    const usedPromo = await prisma.promoCodeUsage.findFirst({
+      where: {
+        userId: user.id,
+        promoCode: { code: "WELCOME20" },
+      },
+    });
+
+    const isEligible = !usedPromo;
+
+    return {
+      isFirstOrder: isEligible,
+      discountPercent: isEligible ? 20 : 0,
+      promoCode: "WELCOME20",
+    };
+  } catch {
+    return { isFirstOrder: false, discountPercent: 0, promoCode: "WELCOME20" };
+  }
+}
 
 // Retrieve unique delivery addresses from user's past orders
 export async function getRecentAddresses(token: string): Promise<SavedAddress[]> {
@@ -210,12 +246,32 @@ export async function placeOrder(input: Input): Promise<Result> {
     });
   }
 
-  // 4. COD charges, recalculated on the server
+  // 4. Validate promo code if provided
+  let discount = 0;
+  let promoCodeRecord: { id: string; code: string; discountPct: number } | null = null;
+
+  if (input.promoCode) {
+    const code = input.promoCode.trim().toUpperCase();
+    const promo = await prisma.promoCode.findUnique({ where: { code } });
+    if (promo && promo.active) {
+      const alreadyUsed = await prisma.promoCodeUsage.findUnique({
+        where: { promoCodeId_userId: { promoCodeId: promo.id, userId: user.id } },
+      });
+      if (!alreadyUsed) {
+        discount = Math.round(subtotal * promo.discountPct / 100);
+        promoCodeRecord = { id: promo.id, code: promo.code, discountPct: promo.discountPct };
+      }
+    }
+  }
+
+  const discountedSubtotal = subtotal - discount;
+
+  // 5. COD charges, recalculated on the server
   let shipping = 0;
   let codCharge = 0;
   if (input.payment === "COD") {
     try {
-      const est = await getCodEstimate({ deliveryPincode: a.pincode, orderValueRupees: subtotal, items: ship });
+      const est = await getCodEstimate({ deliveryPincode: a.pincode, orderValueRupees: discountedSubtotal, items: ship });
       if (!est.serviceable) return { ok: false, message: "COD is not available for this pincode." };
       shipping = est.shipping;
       codCharge = est.codCharge;
@@ -224,10 +280,10 @@ export async function placeOrder(input: Input): Promise<Result> {
     }
   }
 
-  const total = subtotal + shipping + codCharge;
+  const total = discountedSubtotal + shipping + codCharge;
   const orderRef = makeRef();
 
-  // 5. For COD orders, register with NimbusPost FIRST.
+  // 6. For COD orders, register with NimbusPost FIRST.
   //    If NimbusPost returns an error, we BLOCK order placement completely — no DB record, no stock deduction.
   let nimbusOrderId: string | null = null;
   if (input.payment === "COD") {
@@ -288,7 +344,7 @@ export async function placeOrder(input: Input): Promise<Result> {
         if (r.count === 0) throw new Error(`STOCK:${l.title}`);
       }
 
-      return tx.order.create({
+      const createdOrder = await tx.order.create({
         data: {
           ref: orderRef,
           nimbusOrderId,
@@ -297,6 +353,8 @@ export async function placeOrder(input: Input): Promise<Result> {
           paymentMethod: input.payment,
           status: "PLACED",
           subtotal,
+          discount,
+          promoCode: promoCodeRecord?.code ?? null,
           shipping,
           codCharge,
           total,
@@ -310,6 +368,18 @@ export async function placeOrder(input: Input): Promise<Result> {
         },
         select: { id: true },
       });
+
+      if (promoCodeRecord) {
+        await tx.promoCodeUsage.create({
+          data: {
+            promoCodeId: promoCodeRecord.id,
+            userId: user.id,
+            orderId: createdOrder.id,
+          },
+        });
+      }
+
+      return createdOrder;
     });
 
     // Send order confirmation email asynchronously

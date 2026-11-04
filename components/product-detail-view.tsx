@@ -1,72 +1,126 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BadgeCheck, Check, ShoppingCart, Truck, Wallet } from "lucide-react";
+import { Star, Check, Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { StockBadge } from "@/components/stock-badge";
 import { ProductGallery } from "@/components/product-gallery";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import { addItem } from "@/lib/store/slices/cartSlice";
-import { formatINR, getColorHex } from "@/lib/products";
+import { discountPct, formatINR, getColorHex } from "@/lib/products";
 import type { StoreProduct } from "@/lib/catalog";
-import { useMounted } from "@/lib/use-mounted";
 import { cn } from "@/lib/utils";
+
+// 5-Star rating row
+function RatingStars({
+  rating,
+  total,
+  onReviewsClick,
+}: {
+  rating: number;
+  total: number;
+  onReviewsClick?: () => void;
+}) {
+  const full = Math.floor(rating);
+  const half = rating % 1 >= 0.5;
+
+  return (
+    <button
+      type="button"
+      onClick={onReviewsClick}
+      className="flex items-center gap-2 group cursor-pointer text-left"
+    >
+      <div className="flex items-center gap-1">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Star
+            key={i}
+            className={cn(
+              "size-4 sm:size-4.5",
+              total > 0 && i < full
+                ? "fill-[#FFC633] text-[#FFC633]"
+                : total > 0 && half && i === full
+                  ? "fill-[#FFC633]/60 text-[#FFC633]"
+                  : "fill-[#E0E0E0] text-[#E0E0E0]"
+            )}
+            aria-hidden
+          />
+        ))}
+      </div>
+      <span className="text-xs sm:text-sm text-black/70 font-medium group-hover:text-black transition-colors">
+        {total > 0 ? (
+          <>
+            {rating.toFixed(1)}
+            <span className="text-black/40">/5</span>{" "}
+            <span className="text-black/40 text-xs">({total})</span>
+          </>
+        ) : (
+          <span className="text-black/50 text-xs">No reviews yet</span>
+        )}
+      </span>
+    </button>
+  );
+}
 
 export function ProductDetailView({ product }: { product: StoreProduct }) {
   const dispatch = useAppDispatch();
   const router = useRouter();
-  const mounted = useMounted();
+  const [mounted, setMounted] = useState(false);
 
-  const hasSizes = !!product.sizes && product.sizes.length > 0;
-  const hasColors = !!product.colors && product.colors.length > 0;
+  const defaultSizes = ["Small", "Medium", "Large", "X-Large"];
+  const availableSizes =
+    product.sizes && product.sizes.length > 0 ? product.sizes : defaultSizes;
 
-  // Selected state
-  const [selectedSize, setSelectedSize] = useState<string | null>(
-    hasSizes ? product.sizes[0] : null
-  );
-  const [selectedColor, setSelectedColor] = useState<string | null>(
-    hasColors ? product.colors[0] : null
-  );
+  const defaultColors = ["Black", "Olive Green", "Charcoal"];
+  const availableColors =
+    product.colors && product.colors.length > 0 ? product.colors : defaultColors;
 
-  // Active gallery image index
+  const [selectedSize, setSelectedSize] = useState<string>(availableSizes[0]);
+  const [selectedColor, setSelectedColor] = useState<string>(availableColors[0]);
+  const [quantity, setQuantity] = useState(1);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
-  // Switch image when color changes if product has multiple images
-  const handleColorChange = (colorName: string, index: number) => {
-    setSelectedColor(colorName);
-    const imagesCount = product.images?.length || (product.imageUrl ? 1 : 0);
-    if (imagesCount > 1 && index < imagesCount) {
-      setActiveImageIndex(index);
+  // Dynamic reviews rating state
+  const [avgRating, setAvgRating] = useState<number>(0);
+  const [reviewsTotal, setReviewsTotal] = useState<number>(0);
+
+  useEffect(() => {
+    async function loadRating() {
+      try {
+        const res = await fetch(`/api/reviews/${encodeURIComponent(product.id)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setAvgRating(data.averageRating || 0);
+          setReviewsTotal(data.total || 0);
+        }
+      } catch {
+        // silent fallback
+      }
+    }
+    loadRating();
+  }, [product.id]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const scrollToReviews = () => {
+    const el = document.getElementById("reviews-section");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth" });
     }
   };
 
-  const cartItemId = `${product.id}${selectedColor ? `-${selectedColor}` : ""}${
-    selectedSize ? `-${selectedSize}` : ""
-  }`;
+  const discount = discountPct(product);
 
-  const inCart = useAppSelector((s) => s.cart.items.find((i) => i.id === cartItemId));
+  const cartItemId = `${product.id}-${selectedColor}-${selectedSize}`;
+  const cartItem = useAppSelector((s) =>
+    s.cart.items.find((i) => i.id === cartItemId)
+  );
+  const inCart = mounted ? cartItem : undefined;
 
-  const handleAddToCart = (isBuyNow = false) => {
+  const handleAddToCart = () => {
     if (product.stock < 1) {
       toast.error("This product is currently out of stock");
-      return;
-    }
-
-    if (hasColors && !selectedColor) {
-      toast.error("Please select a color");
-      return;
-    }
-
-    if (hasSizes && !selectedSize) {
-      toast.error("Please select a size");
-      return;
-    }
-
-    if (inCart && inCart.qty >= product.stock && !isBuyNow) {
-      toast.info("You have all available stock in your cart.", { id: `max-${product.id}` });
       return;
     }
 
@@ -78,196 +132,170 @@ export function ProductDetailView({ product }: { product: StoreProduct }) {
         price: product.price,
         mrp: product.mrp,
         stock: product.stock,
-        color: selectedColor || undefined,
-        size: selectedSize || undefined,
+        color: selectedColor,
+        size: selectedSize,
+        imageUrl: product.imageUrl ?? undefined,
       })
     );
 
-    if (isBuyNow) {
-      router.push("/checkout");
-    } else {
-      const variantDesc = [
-        selectedColor ? `Color: ${selectedColor}` : null,
-        selectedSize ? `Size: ${selectedSize}` : null,
-      ]
-        .filter(Boolean)
-        .join(" • ");
-
-      toast.success(variantDesc ? `Added to cart (${variantDesc})` : "Added to cart", {
-        id: `add-${cartItemId}`,
-        description: product.title,
-        action: { label: "View cart", onClick: () => router.push("/cart") },
-      });
-    }
+    toast.success("Added to cart", {
+      description: `${product.title} (${selectedColor}, ${selectedSize})`,
+      action: { label: "View Cart", onClick: () => router.push("/cart") },
+    });
   };
 
   return (
-    <div className="grid gap-6 sm:gap-8 md:grid-cols-[400px_1fr] lg:grid-cols-[440px_1fr] lg:gap-12 items-start">
-      {/* Interactive Multi-Image Gallery with Color-Sync */}
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
+      {/* ── Left Column: Shop.co Gallery (Mobile: Main top + 3 thumbs below | Desktop: 3 thumbs left + Main right) ── */}
       <ProductGallery
         product={product}
         activeIndex={activeImageIndex}
         onIndexChange={setActiveImageIndex}
       />
 
-      {/* Product Details & Variant Selectors */}
-      <div className="space-y-5">
-        <div className="space-y-2">
-          <Badge variant="secondary" className="text-xs px-2.5 py-0.5">
-            {product.category}
-          </Badge>
-          <h1 className="font-heading text-xl font-bold leading-snug tracking-tight sm:text-2xl text-foreground">
-            {product.title}
-          </h1>
-          {product.description && (
-            <p className="max-w-prose text-xs sm:text-sm text-muted-foreground leading-relaxed">
-              {product.description}
-            </p>
-          )}
+      {/* ── Right Column: Clean Shop.co Product Details ── */}
+      <div className="flex flex-col">
+        {/* Title */}
+        <h1 className="font-heading text-2xl sm:text-3xl lg:text-[40px] font-black uppercase tracking-tight text-black leading-tight">
+          {product.title}
+        </h1>
+
+        {/* Dynamic Rating */}
+        <div className="mt-2.5 sm:mt-3 flex items-center gap-3">
+          <RatingStars
+            rating={avgRating}
+            total={reviewsTotal}
+            onReviewsClick={scrollToReviews}
+          />
         </div>
 
-        <div className="space-y-4 rounded-2xl border border-border/60 bg-card p-4 sm:p-5 shadow-xs">
-          {/* Price Header */}
-          <div className="flex flex-wrap items-baseline gap-2.5">
-            <span className="font-heading text-2xl sm:text-3xl font-black tracking-tight text-foreground">
-              {formatINR(product.price)}
-            </span>
-            <span className="text-xs sm:text-sm text-muted-foreground line-through font-medium">
-              MRP {formatINR(product.mrp)}
-            </span>
-            {product.mrp > product.price && (
-              <span className="ml-auto rounded-md bg-[#fcc618] px-2 py-0.5 text-xs font-bold text-black shadow-xs">
-                Save {formatINR(product.mrp - product.price)}
+        {/* Price Row: Bold Price + Strikethrough MRP + Red Discount Pill */}
+        <div className="mt-3.5 sm:mt-4 flex items-center gap-3 sm:gap-4">
+          <span className="font-heading text-2xl sm:text-3xl lg:text-[32px] font-bold text-black tracking-tight">
+            {formatINR(product.price)}
+          </span>
+
+          {product.mrp > product.price && (
+            <>
+              <span className="font-heading text-2xl sm:text-3xl lg:text-[32px] font-bold text-black/40 line-through">
+                {formatINR(product.mrp)}
               </span>
-            )}
-          </div>
 
-          <div>
-            <StockBadge stock={product.stock} />
-          </div>
-
-          {/* Color Selection Swatches */}
-          {hasColors && (
-            <div className="space-y-2 pt-2 border-t border-border/50">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-foreground">
-                  Color:{" "}
-                  <strong className="text-primary font-bold">
-                    {selectedColor || "Select a color"}
-                  </strong>
-                </span>
-                <span className="text-[11px] text-muted-foreground">
-                  {product.colors.length} {product.colors.length === 1 ? "shade" : "shades"}
-                </span>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {product.colors.map((c, idx) => {
-                  const isSelected = selectedColor === c;
-                  const hex = getColorHex(c);
-                  return (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => handleColorChange(c, idx)}
-                      className={cn(
-                        "flex items-center gap-2 h-9 px-3 rounded-lg text-xs font-semibold transition-all border select-none",
-                        isSelected
-                          ? "border-primary bg-primary/10 text-primary ring-2 ring-primary/20 shadow-xs scale-102"
-                          : "border-border bg-card hover:border-primary/50 hover:bg-muted text-foreground"
-                      )}
-                    >
-                      <span
-                        className="size-3.5 rounded-full border border-black/20 shadow-2xs shrink-0"
-                        style={{ backgroundColor: hex }}
-                      />
-                      <span>{c}</span>
-                      {isSelected && <Check className="size-3.5 stroke-[3]" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+              <span className="rounded-full bg-[#FF3333]/10 px-3 py-0.5 text-xs sm:text-sm font-bold text-[#FF3333]">
+                -{discount}%
+              </span>
+            </>
           )}
+        </div>
 
-          {/* Size Selection Pills */}
-          {hasSizes && (
-            <div className="space-y-2 pt-2 border-t border-border/50">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-foreground">
-                  Size:{" "}
-                  <strong className="text-primary font-bold">
-                    {selectedSize || "Select a size"}
-                  </strong>
-                </span>
-                <span className="text-[11px] text-muted-foreground">Standard fit</span>
-              </div>
+        {/* Description */}
+        <p className="mt-4 sm:mt-5 text-sm sm:text-base text-black/60 leading-relaxed font-normal">
+          {product.description ||
+            "This graphic t-shirt which is perfect for any occasion. Crafted from a soft and breathable fabric, it offers superior comfort and style."}
+        </p>
 
-              <div className="flex flex-wrap gap-2">
-                {product.sizes.map((s) => {
-                  const isSelected = selectedSize === s;
-                  return (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setSelectedSize(s)}
-                      className={cn(
-                        "h-9 min-w-11 px-3 rounded-lg text-xs font-bold transition-all border select-none",
-                        isSelected
-                          ? "border-primary bg-primary text-primary-foreground ring-2 ring-primary/20 shadow-xs scale-102"
-                          : "border-border bg-card hover:border-primary/50 hover:bg-muted text-foreground"
-                      )}
-                    >
-                      {s}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+        <hr className="border-black/10 my-5 sm:my-6" />
 
-          {/* Action Buttons */}
-          <div className="pt-2">
-            {product.stock < 1 ? (
-              <Button disabled className="h-10 w-full opacity-60">
-                Out of stock
-              </Button>
-            ) : (
-              <div className="flex w-full gap-2.5">
-                <Button
-                  onClick={() => handleAddToCart(false)}
-                  variant="outline"
-                  className="flex-1 h-10 font-semibold gap-1.5"
+        {/* ── Select Colors ── */}
+        <div className="space-y-2.5 sm:space-y-3">
+          <p className="text-xs sm:text-sm text-black/60 font-medium">Select Colors</p>
+          <div className="flex flex-wrap items-center gap-3 sm:gap-3.5">
+            {availableColors.map((colorName, idx) => {
+              const hex = getColorHex(colorName);
+              const isSelected = selectedColor === colorName;
+              return (
+                <button
+                  key={colorName}
+                  type="button"
+                  onClick={() => {
+                    setSelectedColor(colorName);
+                    if (product.images && product.images.length > idx) {
+                      setActiveImageIndex(idx);
+                    }
+                  }}
+                  aria-label={`Select color ${colorName}`}
+                  style={{ backgroundColor: hex }}
+                  className={cn(
+                    "grid size-9 sm:size-10 place-items-center rounded-full transition-transform cursor-pointer relative border border-black/10 shadow-2xs hover:scale-105",
+                    isSelected && "ring-2 ring-black ring-offset-2 scale-105"
+                  )}
                 >
-                  <ShoppingCart className="size-4" aria-hidden />
-                  {mounted && inCart ? `In cart (${inCart.qty})` : "Add to cart"}
-                </Button>
-                <Button
-                  onClick={() => handleAddToCart(true)}
-                  className="flex-1 h-10 font-semibold"
-                >
-                  Buy now
-                </Button>
-              </div>
-            )}
+                  {isSelected && <Check className="size-4 text-white stroke-[3]" />}
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* E-Commerce Trust Badges */}
-        <ul className="space-y-2.5 rounded-xl border border-border/40 bg-muted/20 p-4 text-xs sm:text-sm">
-          {[
-            { icon: BadgeCheck, text: "MRP and our price shown side by side" },
-            { icon: Wallet, text: "Pay with UPI or Cash on Delivery" },
-            { icon: Truck, text: "100% Free Shipping on all orders" },
-          ].map(({ icon: I, text }) => (
-            <li key={text} className="flex items-center gap-2.5 text-muted-foreground">
-              <I className="size-4 shrink-0 text-primary" aria-hidden />
-              <span>{text}</span>
-            </li>
-          ))}
-        </ul>
+        <hr className="border-black/10 my-5 sm:my-6" />
+
+        {/* ── Choose Size ── */}
+        <div className="space-y-2.5 sm:space-y-3">
+          <p className="text-xs sm:text-sm text-black/60 font-medium">Choose Size</p>
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+            {availableSizes.map((size) => {
+              const isSelected = selectedSize === size;
+              return (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => setSelectedSize(size)}
+                  className={cn(
+                    "rounded-full px-5 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-medium transition-all cursor-pointer",
+                    isSelected
+                      ? "bg-black text-white shadow-xs"
+                      : "bg-[#F0F0F0] text-black/60 hover:text-black hover:bg-black/10"
+                  )}
+                >
+                  {size}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <hr className="border-black/10 my-5 sm:my-6" />
+
+        {/* ── Quantity Stepper + Add to Cart Button (Mobile responsive single row) ── */}
+        <div className="flex items-center gap-3 sm:gap-5">
+          {/* Quantity Stepper */}
+          <div className="flex items-center justify-between gap-3 sm:gap-6 rounded-full bg-[#F0F0F0] px-4 sm:px-5 py-3 sm:py-4 shrink-0">
+            <button
+              type="button"
+              aria-label="Decrease quantity"
+              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+              className="text-black/70 hover:text-black transition-colors"
+            >
+              <Minus className="size-4 sm:size-5" />
+            </button>
+            <span className="font-bold text-sm sm:text-base text-black select-none px-1">
+              {quantity}
+            </span>
+            <button
+              type="button"
+              aria-label="Increase quantity"
+              onClick={() => setQuantity((q) => Math.min(product.stock || 10, q + 1))}
+              className="text-black/70 hover:text-black transition-colors"
+            >
+              <Plus className="size-4 sm:size-5" />
+            </button>
+          </div>
+
+          {/* Add to Cart Black Pill */}
+          <button
+            type="button"
+            onClick={handleAddToCart}
+            disabled={product.stock < 1}
+            className="flex-1 rounded-full bg-black py-3 sm:py-4 text-center text-xs sm:text-base font-semibold text-white hover:bg-black/85 active:scale-[0.99] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm truncate"
+          >
+            {product.stock < 1
+              ? "Out of Stock"
+              : inCart
+                ? `In Cart (${inCart.qty})`
+                : "Add to Cart"}
+          </button>
+        </div>
       </div>
     </div>
   );
 }
-

@@ -1,88 +1,111 @@
 import Link from "next/link";
-import { AddToCart } from "@/components/add-to-cart";
+import { Star } from "lucide-react";
 import { ProductImage } from "@/components/product-image";
 import { discountPct, formatINR } from "@/lib/products";
 import type { StoreProduct } from "@/lib/catalog";
 import { cn } from "@/lib/utils";
 
-export function ProductCard({ product }: { product: StoreProduct }) {
-  const href = `/products/${product.id}`;
-  const discount = discountPct(product);
+// Deterministic rating for products to match Figma (e.g., 4.5/5, 5.0/5, 3.5/5)
+function getProductRating(id: string): number {
+  const ratings = [4.5, 5.0, 3.5, 4.0, 4.5, 5.0];
+  let sum = 0;
+  for (let i = 0; i < id.length; i++) sum += id.charCodeAt(i);
+  return ratings[sum % ratings.length];
+}
+
+// 5-Star rating component matching Shop.co Figma style
+function StarRating({ rating = 4.5 }: { rating?: number }) {
+  const full = Math.floor(rating);
+  const half = rating % 1 >= 0.5;
 
   return (
-    <div className="group flex h-full flex-col justify-between overflow-hidden rounded-xl border border-border/50 bg-card shadow-xs transition-shadow hover:shadow-md">
-      {/* Top Image Container: Reduced compact fixed height */}
-      <Link href={href} aria-label={product.title} tabIndex={-1} className="block relative">
-        <div className="relative flex h-36 sm:h-40 w-full items-center justify-center overflow-hidden bg-muted/20">
-          <ProductImage
-            product={product}
-            width={400}
+    <div className="flex items-center gap-1.5 pt-0.5">
+      <div className="flex items-center gap-0.5">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Star
+            key={i}
             className={cn(
-              "size-full object-contain transition-transform duration-300 group-hover:scale-105",
-              product.stock < 1 && "opacity-50 grayscale"
+              "size-3.5 sm:size-4",
+              i < full
+                ? "fill-[#FFC633] text-[#FFC633]"
+                : half && i === full
+                ? "fill-[#FFC633]/60 text-[#FFC633]"
+                : "fill-[#E0E0E0] text-[#E0E0E0]"
             )}
-            iconClassName="size-10 transition-transform group-hover:scale-110 text-muted-foreground"
+            aria-hidden
           />
-          {/* Category Badge Top Left */}
-          <span className="absolute top-1.5 left-1.5 rounded-md bg-slate-900/80 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-medium text-white backdrop-blur-xs">
-            {product.category}
-          </span>
-          {/* Discount Badge Top Right */}
-          <span className="absolute top-1.5 right-1.5 rounded-md bg-[#fcc618] px-1.5 py-0.5 text-[9px] sm:text-[10px] font-extrabold text-black shadow-xs">
-            {discount > 0 ? `${discount}% off` : "0% off"}
-          </span>
-        </div>
-      </Link>
+        ))}
+      </div>
+      <span className="text-xs sm:text-sm text-black/60 font-normal">
+        {rating.toFixed(1)}
+        <span className="text-black/40">/5</span>
+      </span>
+    </div>
+  );
+}
 
-      {/* Content Area */}
-      <div className="p-2.5 space-y-1.5 flex-1 flex flex-col justify-between">
-        <div className="space-y-1">
-          <Link
-            href={href}
-            className="line-clamp-2 h-8 font-heading text-xs font-semibold leading-snug text-foreground hover:underline"
-          >
-            {product.title}
-          </Link>
-          <div className="flex items-baseline justify-between gap-1 pt-0.5">
-            <span className="font-heading text-base sm:text-lg font-black tracking-tight text-foreground">
-              {formatINR(product.price)}
-            </span>
-            <span className="text-[10px] sm:text-[11px] text-muted-foreground line-through font-medium">
-              {formatINR(product.mrp)}
-            </span>
-          </div>
-          <div>
-            {product.stock > 0 ? (
-              product.stock <= 5 ? (
-                <span className="inline-block rounded-full bg-[#fcc618] px-2 py-0.5 text-[9px] sm:text-[10px] font-bold text-black">
-                  Only {product.stock} left
-                </span>
-              ) : (
-                <span className="inline-block rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold text-emerald-400">
-                  In stock
-                </span>
-              )
-            ) : (
-              <span className="inline-block rounded-full bg-rose-500/15 px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold text-rose-400">
-                Out of stock
+export function ProductCard({
+  product,
+  rating,
+}: {
+  product: StoreProduct;
+  rating?: number;
+}) {
+  const href = `/products/${product.id}`;
+  const discount = discountPct(product);
+  const productRating = rating ?? getProductRating(product.id);
+
+  return (
+    <Link href={href} className="group block cursor-pointer select-none">
+      {/* ── Image box with soft #F0EEED rounded background ── */}
+      <div className="relative aspect-square w-full overflow-hidden rounded-[20px] bg-[#F0EEED] p-4 sm:p-6 flex items-center justify-center transition-transform duration-300 group-hover:scale-[1.02]">
+        <ProductImage
+          product={product}
+          width={400}
+          className={cn(
+            "size-full object-contain transition-transform duration-300 group-hover:scale-105",
+            product.stock < 1 && "opacity-50 grayscale"
+          )}
+          iconClassName="size-16 text-black/20"
+        />
+
+        {/* Out of stock badge if stock is 0 */}
+        {product.stock < 1 && (
+          <span className="absolute bottom-3 left-3 rounded-full bg-black/80 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-xs">
+            Out of stock
+          </span>
+        )}
+      </div>
+
+      {/* ── Details below image (Clean Shop.co typography) ── */}
+      <div className="mt-3.5 space-y-1">
+        {/* Product Title */}
+        <h3 className="font-heading text-sm sm:text-base font-bold text-black truncate leading-snug group-hover:underline">
+          {product.title}
+        </h3>
+
+        {/* Star Rating */}
+        <StarRating rating={productRating} />
+
+        {/* Price Row: Bold Price + Strikethrough MRP + Soft Red Discount Badge */}
+        <div className="flex items-center gap-2 sm:gap-2.5 pt-0.5">
+          <span className="font-heading text-lg sm:text-xl font-bold text-black tracking-tight">
+            {formatINR(product.price)}
+          </span>
+
+          {discount > 0 && (
+            <>
+              <span className="text-sm sm:text-base font-bold text-black/40 line-through">
+                {formatINR(product.mrp)}
               </span>
-            )}
-          </div>
-        </div>
 
-        {/* Footer Buttons */}
-        <div className="flex items-center gap-1.5 pt-0.5">
-          <Link
-            href={href}
-            className="h-7 rounded-lg border border-input bg-background/50 px-2 text-[10px] sm:text-[11px] font-semibold text-foreground hover:bg-muted flex items-center justify-center transition-colors"
-          >
-            Details
-          </Link>
-          <div className="flex-1">
-            <AddToCart product={product} compact />
-          </div>
+              <span className="rounded-full bg-[#FF3333]/10 px-2 sm:px-2.5 py-0.5 text-[10px] sm:text-xs font-bold text-[#FF3333]">
+                -{discount}%
+              </span>
+            </>
+          )}
         </div>
       </div>
-    </div>
+    </Link>
   );
 }

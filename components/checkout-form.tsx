@@ -8,6 +8,7 @@ import {
   Banknote,
   Check,
   ChevronDown,
+  ChevronRight,
   Home,
   Briefcase,
   MapPin,
@@ -18,6 +19,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   Smartphone,
+  Tag,
   Trash2,
   Wallet,
 } from "lucide-react";
@@ -45,7 +47,7 @@ import { auth } from "@/hooks/useFirebaseAuth";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import { clearCart } from "@/lib/store/slices/cartSlice";
 import { useCodEstimate } from "@/lib/use-cod-estimate";
-import { getRecentAddresses, placeOrder, type SavedAddress } from "@/lib/order-actions";
+import { checkFirstOrderEligibility, getRecentAddresses, placeOrder, type SavedAddress } from "@/lib/order-actions";
 import { formatINR } from "@/lib/products";
 import { useMounted } from "@/lib/use-mounted";
 import { usePincodeLookup } from "@/lib/use-pincode-lookup";
@@ -197,14 +199,74 @@ export function CheckoutForm() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | undefined>();
   const [pending, startTransition] = useTransition();
+  const [isFirstOrder, setIsFirstOrder] = useState<boolean>(false);
+  const [appliedPromo, setAppliedPromo] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const isRemoved = localStorage.getItem("bachatnix_promo_removed") === "true";
+      if (!isRemoved) {
+        const saved = localStorage.getItem("bachatnix_applied_promo");
+        if (saved) setAppliedPromo(saved.toUpperCase());
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setIsFirstOrder(false);
+      return;
+    }
+    let cancelled = false;
+    async function checkDiscount() {
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) return;
+        const res = await checkFirstOrderEligibility(token);
+        if (!cancelled) {
+          setIsFirstOrder(res.isFirstOrder);
+          const isRemoved = localStorage.getItem("bachatnix_promo_removed") === "true";
+          const saved = localStorage.getItem("bachatnix_applied_promo");
+          if (res.isFirstOrder && !isRemoved && !saved) {
+            setAppliedPromo("WELCOME20");
+            try {
+              localStorage.setItem("bachatnix_applied_promo", "WELCOME20");
+            } catch {}
+          } else if (!res.isFirstOrder) {
+            setAppliedPromo(null);
+            try {
+              localStorage.removeItem("bachatnix_applied_promo");
+            } catch {}
+          }
+        }
+      } catch (err) {
+        console.error("Failed to check first order eligibility", err);
+      }
+    }
+    void checkDiscount();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const handleRemovePromoInCheckout = () => {
+    setAppliedPromo(null);
+    try {
+      localStorage.removeItem("bachatnix_applied_promo");
+      localStorage.setItem("bachatnix_promo_removed", "true");
+    } catch {}
+    toast.info("Promo code removed");
+  };
 
   const subtotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
   const mrpTotal = items.reduce((sum, i) => sum + i.mrp * i.qty, 0);
+  const firstOrderDiscount = appliedPromo && isFirstOrder ? Math.round(subtotal * 0.20) : 0;
+  const discountedSubtotal = subtotal - firstOrderDiscount;
 
   const cartLines = items.map((i) => ({ id: i.productId || i.id, qty: i.qty }));
   const cod = useCodEstimate(form.pincode, cartLines, payment === "COD");
   const codCharges = payment === "COD" && cod.status === "ok" ? cod.data.total : 0;
-  const grandTotal = subtotal + codCharges;
+  const grandTotal = discountedSubtotal + codCharges;
   const codBlocked = payment === "COD" && cod.status !== "ok";
 
   const lookup = usePincodeLookup(form.pincode);
@@ -470,6 +532,7 @@ export function CheckoutForm() {
       const res = await placeOrder({
         token,
         payment: "COD",
+        promoCode: appliedPromo ?? undefined,
         address: form,
         items: items.map((i) => ({
           id: i.productId || i.id,
@@ -486,6 +549,7 @@ export function CheckoutForm() {
       }
 
       autoSaveCurrentAddress();
+      try { localStorage.removeItem("bachatnix_applied_promo"); } catch {}
       dispatch(clearCart());
       toast.success("Order placed!");
       router.push(`/orders?placed=${res.orderId}`);
@@ -510,13 +574,14 @@ export function CheckoutForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           token,
+          promoCode: appliedPromo ?? undefined,
           address: form,
           items: items.map((i) => ({
-          id: i.productId || i.id,
-          qty: i.qty,
-          size: i.size,
-          color: i.color,
-        })),
+            id: i.productId || i.id,
+            qty: i.qty,
+            size: i.size,
+            color: i.color,
+          })),
         }),
       });
 
@@ -551,6 +616,7 @@ export function CheckoutForm() {
         console.warn("[Cashfree Checkout Modal] User cancelled or error:", result.error);
         toast.error("Payment was cancelled or failed. You can try again.");
       } else {
+        try { localStorage.removeItem("bachatnix_applied_promo"); } catch {}
         dispatch(clearCart());
         router.push(`/orders/payment-result?orderId=${data.orderRef}`);
       }
@@ -575,19 +641,19 @@ export function CheckoutForm() {
   if (items.length === 0) return <EmptyCart />;
 
   return (
-    <form onSubmit={submit} noValidate className="mt-6 grid gap-8 lg:grid-cols-[1.5fr_1fr]">
+    <form onSubmit={submit} noValidate className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
       <div className="space-y-6">
         {/* Delivery Address Card with Multi-Address Selector */}
-        <Card className="rounded-2xl border shadow-xs overflow-hidden">
-          <CardHeader className="space-y-1 pb-4 bg-muted/5">
+        <Card className="rounded-[20px] border border-black/10 bg-white shadow-2xs overflow-hidden">
+          <CardHeader className="space-y-1 pb-4 border-b border-black/5 bg-black/[0.01]">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5">
-                <span className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary">
+              <div className="flex items-center gap-3">
+                <span className="grid size-9 place-items-center rounded-full bg-black/5 text-black">
                   <MapPin className="size-4" aria-hidden />
                 </span>
                 <div>
-                  <CardTitle className="text-base font-semibold">Delivery address</CardTitle>
-                  <CardDescription className="text-xs">
+                  <CardTitle className="font-heading text-lg font-bold text-black">Delivery Address</CardTitle>
+                  <CardDescription className="text-xs text-black/60">
                     {savedAddresses.length > 0 && !showAddressForm
                       ? "Select where we should deliver your order"
                       : "Enter complete delivery details"}
@@ -600,7 +666,7 @@ export function CheckoutForm() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-8 gap-1.5 text-xs font-semibold hover:bg-muted"
+                  className="h-8 gap-1.5 rounded-full border-black/15 text-xs font-semibold hover:bg-black hover:text-white transition-colors"
                   onClick={() => {
                     setEditingAddressId(null);
                     setAddressTag("Home");
@@ -953,7 +1019,7 @@ export function CheckoutForm() {
                   <Button
                     type="button"
                     size="sm"
-                    className="h-9 px-4 text-xs font-semibold"
+                    className="h-10 px-6 rounded-full bg-black text-white hover:bg-black/85 text-xs font-semibold"
                     onClick={() => handleSaveAddress()}
                   >
                     Save &amp; Deliver Here
@@ -963,7 +1029,7 @@ export function CheckoutForm() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-9 text-xs"
+                      className="h-10 px-5 rounded-full border-black/15 text-xs font-medium hover:bg-black/5"
                       onClick={() => {
                         setShowAddressForm(false);
                         setEditingAddressId(null);
@@ -979,20 +1045,20 @@ export function CheckoutForm() {
         </Card>
 
         {/* Payment Card */}
-        <Card className="rounded-2xl border shadow-xs">
-          <CardHeader className="space-y-1 pb-4">
-            <div className="flex items-center gap-2.5">
-              <span className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary">
+        <Card className="rounded-[20px] border border-black/10 bg-white shadow-2xs overflow-hidden">
+          <CardHeader className="space-y-1 pb-4 border-b border-black/5 bg-black/[0.01]">
+            <div className="flex items-center gap-3">
+              <span className="grid size-9 place-items-center rounded-full bg-black/5 text-black">
                 <Wallet className="size-4" aria-hidden />
               </span>
               <div>
-                <CardTitle className="text-base font-semibold">Payment method</CardTitle>
-                <CardDescription className="text-xs">Choose how you want to pay</CardDescription>
+                <CardTitle className="font-heading text-lg font-bold text-black">Payment Method</CardTitle>
+                <CardDescription className="text-xs text-black/60">Choose how you want to pay</CardDescription>
               </div>
             </div>
           </CardHeader>
 
-          <CardContent className="pt-0">
+          <CardContent className="pt-5">
             <RadioGroup
               value={payment}
               onValueChange={(v) => setPayment(v as Payment)}
@@ -1001,22 +1067,19 @@ export function CheckoutForm() {
               <Label
                 htmlFor="payment-upi"
                 className={cn(
-                  "relative flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-all select-none",
+                  "relative flex cursor-pointer items-start gap-3 rounded-[16px] border p-4 transition-all select-none",
                   payment === "UPI"
-                    ? "border-primary bg-primary/5 ring-1 ring-primary"
-                    : "border-input hover:bg-muted/50",
+                    ? "border-black bg-black/[0.03] ring-1 ring-black"
+                    : "border-black/10 hover:border-black/30 hover:bg-black/[0.01]",
                 )}
               >
                 <RadioGroupItem value="UPI" id="payment-upi" className="mt-0.5" />
                 <div className="flex-1 space-y-1">
                   <div className="flex items-center gap-2">
-                    <Smartphone className="size-4 text-primary" />
-                    <span className="font-semibold text-sm">UPI / Cards / NetBanking</span>
-                    <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-                      ₹0 COD Fee
-                    </span>
+                    <Smartphone className="size-4 text-black" />
+                    <span className="font-semibold text-sm text-black">UPI / Cards / NetBanking</span>
                   </div>
-                  <p className="text-xs text-muted-foreground font-normal leading-relaxed">
+                  <p className="text-xs text-black/60 font-normal leading-relaxed">
                     Pay instantly via GPay, PhonePe, Paytm, Cards or NetBanking. Zero COD fee.
                   </p>
                 </div>
@@ -1025,22 +1088,22 @@ export function CheckoutForm() {
               <Label
                 htmlFor="payment-cod"
                 className={cn(
-                  "relative flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-all select-none",
+                  "relative flex cursor-pointer items-start gap-3 rounded-[16px] border p-4 transition-all select-none",
                   payment === "COD"
-                    ? "border-primary bg-primary/5 ring-1 ring-primary"
-                    : "border-input hover:bg-muted/50",
+                    ? "border-black bg-black/[0.03] ring-1 ring-black"
+                    : "border-black/10 hover:border-black/30 hover:bg-black/[0.01]",
                 )}
               >
                 <RadioGroupItem value="COD" id="payment-cod" className="mt-0.5" />
                 <div className="flex-1 space-y-1">
                   <div className="flex items-center gap-2">
-                    <Banknote className="size-4 text-primary" />
-                    <span className="font-semibold text-sm">Cash on Delivery</span>
-                    <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-                      Free Shipping
+                    <Banknote className="size-4 text-black" />
+                    <span className="font-semibold text-sm text-black">Cash on Delivery</span>
+                    <span className="rounded-full bg-black/5 border border-black/10 px-2 py-0.5 text-[10px] font-medium text-black">
+                      + COD Charge
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground font-normal leading-relaxed">
+                  <p className="text-xs text-black/60 font-normal leading-relaxed">
                     Free shipping on all orders. Nominal courier COD handling fee applies.
                   </p>
                 </div>
@@ -1051,10 +1114,10 @@ export function CheckoutForm() {
       </div>
 
       {/* Summary */}
-      <aside className="lg:sticky lg:top-20 lg:self-start">
-        <Card className="rounded-2xl border shadow-xs">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold">Order summary</CardTitle>
+      <aside className="lg:sticky lg:top-24 lg:self-start">
+        <Card className="rounded-[20px] border border-black/10 bg-white shadow-2xs overflow-hidden">
+          <CardHeader className="pb-3 border-b border-black/5">
+            <CardTitle className="font-heading text-xl font-black text-black tracking-tight">Order Summary</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 pt-0">
             <ul className="space-y-1.5 text-sm">
@@ -1081,11 +1144,42 @@ export function CheckoutForm() {
                 <span>Subtotal</span>
                 <span>{formatINR(subtotal)}</span>
               </p>
+              {firstOrderDiscount > 0 && (
+                <>
+                  <div className="flex items-center justify-between px-3.5 py-2.5 rounded-full bg-emerald-50 border border-emerald-300 text-xs text-emerald-800">
+                    <div className="flex items-center gap-2">
+                      <Tag className="size-3.5 text-emerald-600 shrink-0" />
+                      <span>
+                        Code <strong className="font-bold">{appliedPromo || "WELCOME20"}</strong> applied (-20%)
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemovePromoInCheckout}
+                      className="text-emerald-700 hover:text-red-600 font-bold ml-2 underline text-xs cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <p className="flex justify-between text-red-500 font-medium">
+                    <span>Discount (-20%)</span>
+                    <span>-{formatINR(firstOrderDiscount)}</span>
+                  </p>
+                </>
+              )}
               {mrpTotal > subtotal && (
                 <p className="flex justify-between text-primary">
                   <span>You save</span>
-                  <span>{formatINR(mrpTotal - subtotal)}</span>
+                  <span>{formatINR(mrpTotal - subtotal + firstOrderDiscount)}</span>
                 </p>
+              )}
+
+              {/* Promo banner for guests */}
+              {!user && (
+                <div className="flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-xs font-medium text-primary">
+                  <span>🎉</span>
+                  <span>Sign in and use code <strong>WELCOME20</strong> for <strong>20% OFF</strong> on your first order!</span>
+                </div>
               )}
 
               {/* Free delivery badge */}
@@ -1141,7 +1235,7 @@ export function CheckoutForm() {
                       <p className="text-sm font-medium">Secured by Cashfree Payments</p>
                       <p className="text-xs text-muted-foreground">
                         Pay via GPay, PhonePe, Paytm, Cards, UPI or NetBanking.
-                        Amount: <strong>{formatINR(subtotal)}</strong>
+                        Amount: <strong>{formatINR(discountedSubtotal)}</strong>
                       </p>
                     </div>
                   </div>
@@ -1161,38 +1255,46 @@ export function CheckoutForm() {
                 <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2.5">
                   <ShieldAlert className="size-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
                   <div>
-                    <p className="font-semibold">Sign in required to place order</p>
+                    <p className="font-semibold">Sign in required to place order & get 20% OFF</p>
                     <p className="text-muted-foreground text-[11px] mt-0.5">
-                      Please sign in with Google to prevent fake orders and track your delivery.
+                      Sign in with Google to claim your 20% first order discount, prevent fake orders, and track your delivery.
                     </p>
                   </div>
                 </div>
                 <Button
                   type="button"
                   size="lg"
-                  className="h-10 w-full gap-2"
+                  className="h-12 sm:h-14 w-full rounded-full bg-black text-white hover:bg-black/85 font-medium text-sm sm:text-base flex items-center justify-center gap-2 shadow-sm transition-all"
                   onClick={() => void signIn()}
                   disabled={signingIn}
                 >
-                  {signingIn && <Spinner />}
-                  {signingIn ? "Signing in..." : "Sign in with Google to Order"}
+                  {signingIn && <Spinner className="text-white" />}
+                  {signingIn ? "Signing in..." : "Sign in with Google to Order (20% OFF)"}
+                  {!signingIn && <ChevronRight className="size-4" />}
                 </Button>
               </div>
             ) : payment === "COD" ? (
-              <Button type="submit" size="lg" className="h-10 w-full" disabled={pending || codBlocked}>
-                {pending && <Spinner />}
+              <Button
+                type="submit"
+                size="lg"
+                className="h-12 sm:h-14 w-full rounded-full bg-black text-white hover:bg-black/85 font-medium text-sm sm:text-base flex items-center justify-center gap-2 shadow-sm transition-all"
+                disabled={pending || codBlocked}
+              >
+                {pending && <Spinner className="text-white" />}
                 {pending ? "Placing order..." : "Place order (Cash on Delivery)"}
+                {!pending && <ChevronRight className="size-4" />}
               </Button>
             ) : (
               <Button
                 type="button"
                 size="lg"
-                className="h-10 w-full"
+                className="h-12 sm:h-14 w-full rounded-full bg-black text-white hover:bg-black/85 font-medium text-sm sm:text-base flex items-center justify-center gap-2 shadow-sm transition-all"
                 disabled={upiLoading}
                 onClick={() => void handleUPISubmit()}
               >
-                {upiLoading && <Spinner />}
-                {upiLoading ? "Opening payment..." : `Pay ${formatINR(subtotal)} securely`}
+                {upiLoading && <Spinner className="text-white" />}
+                {upiLoading ? "Opening payment..." : `Pay ${formatINR(discountedSubtotal)} securely`}
+                {!upiLoading && <ChevronRight className="size-4" />}
               </Button>
             )}
           </CardContent>

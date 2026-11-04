@@ -11,6 +11,7 @@ export type CartItem = {
   size?: string;
   color?: string;
   productId?: string;
+  imageUrl?: string;
 };
 type CartState = { items: CartItem[]; hydrated: boolean };
 

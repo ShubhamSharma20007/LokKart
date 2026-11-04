@@ -23,7 +23,7 @@ export const CLOTHING_COLORS = [
   { name: "Purple", hex: "#7e22ce" },
   { name: "Black", hex: "#111827" },
   { name: "White", hex: "#f8fafc", border: true },
-  { name: "Navy Blue", hex: "#1e3a8a" },
+  { name: "Charcoal", hex: "#1f2937" },
   { name: "Olive Green", hex: "#3f6212" },
   { name: "Bottle Green", hex: "#14532d" },
   { name: "Wine Red", hex: "#4c0519" },
@@ -45,7 +45,7 @@ export function getColorHex(name: string): string {
   if (match) return match.hex;
   if (clean.includes("green") || clean.includes("teal")) return "#0d9488";
   if (clean.includes("red") || clean.includes("maroon") || clean.includes("wine")) return "#881337";
-  if (clean.includes("blue") || clean.includes("navy")) return "#1e3a8a";
+  if (clean.includes("blue") || clean.includes("navy")) return "#111827";
   if (clean.includes("purple") || clean.includes("violet")) return "#7e22ce";
   if (clean.includes("yellow") || clean.includes("mustard")) return "#ca8a04";
   if (clean.includes("black")) return "#111827";

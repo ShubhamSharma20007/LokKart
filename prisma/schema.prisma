@@ -32,16 +32,17 @@ enum PaymentStatus {
 }
 
 model User {
-  id          String    @id @default(cuid())
-  firebaseUid String?   @unique
-  name        String
-  email       String    @unique
-  phone       String?
-  photoUrl    String?
-  role        Role      @default(BUYER)
-  orders      Order[]
-  lastLoginAt DateTime?
-  createdAt   DateTime  @default(now())
+  id              String           @id @default(cuid())
+  firebaseUid     String?          @unique
+  name            String
+  email           String           @unique
+  phone           String?
+  photoUrl        String?
+  role            Role             @default(BUYER)
+  orders          Order[]
+  promoUsages     PromoCodeUsage[]
+  lastLoginAt     DateTime?
+  createdAt       DateTime         @default(now())
 }
 
 model Product {
@@ -67,40 +68,58 @@ model Product {
   basePrice       Int @default(0)  // buffer ke bina original price
   shippingBuffer  Int @default(0)
   orderItems      OrderItem[]
+  reviews         Review[]
 
   @@index([category])
   @@index([price])
 }
 
+model Review {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    String?
+  userName  String
+  userEmail String?
+  rating    Int      @default(5)
+  comment   String
+  verified  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+  @@index([createdAt])
+}
+
 model Order {
-  id            String        @id @default(cuid())
-  ref           String        @default(cuid())
-  userId        String
-  user          User          @relation(fields: [userId], references: [id])
-  paymentMethod PaymentMethod
-  paymentStatus PaymentStatus @default(PENDING)
-  status        OrderStatus   @default(PLACED)
-  upiTxnId        String?       // Legacy UTR field — no longer unique (Cashfree replaced manual UTR flow)
-  cashfreeOrderId String?       // Cashfree's cf_order_id
-  subtotal      Int           @default(0)
-  shipping      Int           @default(0)
-  codCharge     Int           @default(0)
-  total         Int
-  name          String
-  phone         String
-  address       String        @default("")
-  city          String        @default("")
-  state         String        @default("")
-  pincode       String        @default("")
-  // NimbusPost order_id (returned after POST /v2/orders). Null if push failed or UPI order.
-  nimbusOrderId String?
-  // NimbusPost tracking & shipment details (populated on booking / webhook)
-  awb           String?
-  courierName   String?
-  trackingUrl   String?
-  labelUrl      String?
-  items         OrderItem[]
-  createdAt     DateTime      @default(now())
+  id              String          @id @default(cuid())
+  ref             String          @default(cuid())
+  userId          String
+  user            User            @relation(fields: [userId], references: [id])
+  paymentMethod   PaymentMethod
+  paymentStatus   PaymentStatus   @default(PENDING)
+  status          OrderStatus     @default(PLACED)
+  upiTxnId        String?         // Legacy UTR field
+  cashfreeOrderId String?         // Cashfree's cf_order_id
+  subtotal        Int             @default(0)
+  discount        Int             @default(0)
+  promoCode       String?         // promo code used (if any)
+  shipping        Int             @default(0)
+  codCharge       Int             @default(0)
+  total           Int
+  name            String
+  phone           String
+  address         String          @default("")
+  city            String          @default("")
+  state           String          @default("")
+  pincode         String          @default("")
+  nimbusOrderId   String?
+  awb             String?
+  courierName     String?
+  trackingUrl     String?
+  labelUrl        String?
+  items           OrderItem[]
+  promoUsage      PromoCodeUsage?
+  createdAt       DateTime        @default(now())
 }
 
 model OrderItem {
@@ -116,3 +135,26 @@ model OrderItem {
   product   Product @relation(fields: [productId], references: [id])
 }
 
+model PromoCode {
+  id             String           @id @default(cuid())
+  code           String           @unique
+  discountPct    Int              // e.g. 20 for 20%
+  maxUsesPerUser Int              @default(1)
+  active         Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  usages         PromoCodeUsage[]
+}
+
+model PromoCodeUsage {
+  id          String    @id @default(cuid())
+  promoCodeId String
+  promoCode   PromoCode @relation(fields: [promoCodeId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  orderId     String?   @unique
+  order       Order?    @relation(fields: [orderId], references: [id])
+  usedAt      DateTime  @default(now())
+
+  @@unique([promoCodeId, userId])
+  @@index([userId])
+}

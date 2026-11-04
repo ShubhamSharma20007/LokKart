@@ -2,31 +2,26 @@
 
 import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
 import { useAppSelector } from "@/lib/store/hooks";
 import { selectCount } from "@/lib/store/slices/cartSlice";
 import { useMounted } from "@/lib/use-mounted";
-import { cn } from "@/lib/utils";
 
 export function CartLink() {
   const count = useAppSelector(selectCount);
   const mounted = useMounted();
-
   const displayCount = mounted ? count : 0;
 
   return (
     <Link
       href="/cart"
-      className={cn(buttonVariants({ size: "sm" }), "ml-1 gap-1.5")}
+      className="relative grid size-9 sm:size-10 place-items-center rounded-full hover:bg-gray-100 text-black transition-colors"
       aria-label={`Cart, ${displayCount} items`}
     >
-      <ShoppingCart aria-hidden />
-      Cart
+      <ShoppingCart className="size-5 sm:size-[22px]" aria-hidden />
       {displayCount > 0 && (
-        <Badge variant="signal" className="h-5 min-w-5 px-1.5 font-bold" aria-hidden>
+        <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-black text-[#FFC633] px-1 text-[10px] font-bold shadow-xs">
           {displayCount}
-        </Badge>
+        </span>
       )}
     </Link>
   );

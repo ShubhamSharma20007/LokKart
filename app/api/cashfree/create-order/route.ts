@@ -10,6 +10,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as {
       token?: string;
+      promoCode?: string;
       address?: {
         name: string;
         phone: string;
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
       items?: { id: string; productId?: string; qty: number; size?: string; color?: string }[];
     };
 
-    const { token, address: a, items: rawItems } = body;
+    const { token, promoCode, address: a, items: rawItems } = body;
 
     // 1. Auth
     if (!token) {
@@ -100,10 +101,28 @@ export async function POST(req: NextRequest) {
       lines.push({ productId: p.id, title: p.title, price: p.price, qty: i.qty, size: i.size || null, color: i.color || null });
     }
 
-    const total = subtotal; // UPI: no COD charge, free shipping
+    // 4. Check Promo Code Discount
+    let discount = 0;
+    let promoCodeRecord: { id: string; code: string; discountPct: number } | null = null;
+
+    if (promoCode) {
+      const code = promoCode.trim().toUpperCase();
+      const promo = await prisma.promoCode.findUnique({ where: { code } });
+      if (promo && promo.active) {
+        const alreadyUsed = await prisma.promoCodeUsage.findUnique({
+          where: { promoCodeId_userId: { promoCodeId: promo.id, userId: user.id } },
+        });
+        if (!alreadyUsed) {
+          discount = Math.round((subtotal * promo.discountPct) / 100);
+          promoCodeRecord = { id: promo.id, code: promo.code, discountPct: promo.discountPct };
+        }
+      }
+    }
+
+    const total = subtotal - discount; // UPI: no COD charge, free shipping
     const orderRef = makeRef();
 
-    // 4. Create order in DB + deduct stock in a transaction
+    // 5. Create order in DB + deduct stock in a transaction
     let orderId: string;
     try {
       const order = await prisma.$transaction(async (tx) => {
@@ -115,7 +134,7 @@ export async function POST(req: NextRequest) {
           if (r.count === 0) throw new Error(`STOCK:${l.title}`);
         }
 
-        return tx.order.create({
+        const createdOrder = await tx.order.create({
           data: {
             ref: orderRef,
             userId: user.id,
@@ -123,6 +142,8 @@ export async function POST(req: NextRequest) {
             paymentStatus: "PENDING",
             status: "PLACED",
             subtotal,
+            discount,
+            promoCode: promoCodeRecord?.code ?? null,
             shipping: 0,
             codCharge: 0,
             total,
@@ -136,6 +157,18 @@ export async function POST(req: NextRequest) {
           },
           select: { id: true },
         });
+
+        if (promoCodeRecord) {
+          await tx.promoCodeUsage.create({
+            data: {
+              promoCodeId: promoCodeRecord.id,
+              userId: user.id,
+              orderId: createdOrder.id,
+            },
+          });
+        }
+
+        return createdOrder;
       });
       orderId = order.id;
     } catch (e) {

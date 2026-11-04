@@ -274,3 +274,148 @@ export async function searchListing(p: ListingParams): Promise<ListingResult> {
 
   return { products: keep(rows), total, page, totalPages, categoryCounts };
 }
+
+// Curated fallback products matching Figma Shop.co layout if database is empty
+const FIGMA_NEW_ARRIVALS: StoreProduct[] = [
+  {
+    id: "t-shirt-with-tape-details",
+    title: "T-shirt with Tape Details",
+    description: "Graphic casual cotton t-shirt with signature tape details.",
+    category: "T-Shirts",
+    price: 120,
+    mrp: 120,
+    stock: 50,
+    imageUrl: null,
+    images: [],
+    sizes: ["S", "M", "L", "XL"],
+    colors: ["Black"],
+  },
+  {
+    id: "skinny-fit-jeans",
+    title: "Skinny Fit Jeans",
+    description: "Slim and tapered stretch blue denim jeans.",
+    category: "Jeans",
+    price: 240,
+    mrp: 260,
+    stock: 35,
+    imageUrl: null,
+    images: [],
+    sizes: ["30", "32", "34", "36"],
+    colors: ["Blue"],
+  },
+  {
+    id: "checkered-shirt",
+    title: "Checkered Shirt",
+    description: "Classic red and blue flannel checkered button-down shirt.",
+    category: "Shirts",
+    price: 180,
+    mrp: 180,
+    stock: 40,
+    imageUrl: null,
+    images: [],
+    sizes: ["M", "L", "XL"],
+    colors: ["Red", "Black"],
+  },
+  {
+    id: "sleeve-striped-t-shirt",
+    title: "Sleeve Striped T-shirt",
+    description: "Sporty raglan contrast sleeve striped round neck t-shirt.",
+    category: "T-Shirts",
+    price: 130,
+    mrp: 160,
+    stock: 60,
+    imageUrl: null,
+    images: [],
+    sizes: ["S", "M", "L"],
+    colors: ["Orange", "Black"],
+  },
+];
+
+const FIGMA_TOP_SELLING: StoreProduct[] = [
+  {
+    id: "vertical-striped-shirt",
+    title: "Vertical Striped Shirt",
+    description: "Premium cotton vertical striped mandarin collar casual shirt.",
+    category: "Shirts",
+    price: 212,
+    mrp: 232,
+    stock: 45,
+    imageUrl: null,
+    images: [],
+    sizes: ["M", "L", "XL"],
+    colors: ["Olive Green"],
+  },
+  {
+    id: "courage-graphic-t-shirt",
+    title: "Courage Graphic T-shirt",
+    description: "Bold typography front print oversized street t-shirt.",
+    category: "T-Shirts",
+    price: 145,
+    mrp: 145,
+    stock: 75,
+    imageUrl: null,
+    images: [],
+    sizes: ["S", "M", "L", "XL"],
+    colors: ["Orange"],
+  },
+  {
+    id: "loose-fit-bermuda-shorts",
+    title: "Loose Fit Bermuda Shorts",
+    description: "Washed denim loose fit knee-length bermuda shorts.",
+    category: "Shorts",
+    price: 80,
+    mrp: 80,
+    stock: 30,
+    imageUrl: null,
+    images: [],
+    sizes: ["30", "32", "34"],
+    colors: ["Sky Blue"],
+  },
+  {
+    id: "faded-skinny-jeans",
+    title: "Faded Skinny Jeans",
+    description: "Dark grey acid-wash distressed stretch skinny jeans.",
+    category: "Jeans",
+    price: 210,
+    mrp: 210,
+    stock: 50,
+    imageUrl: null,
+    images: [],
+    sizes: ["30", "32", "34", "36"],
+    colors: ["Black", "Grey"],
+  },
+];
+
+export const getNewArrivals = cache(async (limit = 4): Promise<StoreProduct[]> => {
+  try {
+    const rows = await prisma.product.findMany({
+      where: { stock: { gte: 0 } },
+      select,
+      orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+      take: limit,
+    });
+    const kept = keep(rows);
+    if (kept.length >= limit) return kept;
+    return [...kept, ...FIGMA_NEW_ARRIVALS.slice(0, limit - kept.length)];
+  } catch (err) {
+    console.error("Failed to fetch new arrivals", err);
+    return FIGMA_NEW_ARRIVALS.slice(0, limit);
+  }
+});
+
+export const getTopSelling = cache(async (limit = 4): Promise<StoreProduct[]> => {
+  try {
+    const rows = await prisma.product.findMany({
+      where: { stock: { gte: 0 } },
+      select,
+      orderBy: [{ price: "desc" }, { createdAt: "asc" }, { id: "asc" }],
+      take: limit,
+    });
+    const kept = keep(rows);
+    if (kept.length >= limit) return kept;
+    return [...kept, ...FIGMA_TOP_SELLING.slice(0, limit - kept.length)];
+  } catch (err) {
+    console.error("Failed to fetch top selling", err);
+    return FIGMA_TOP_SELLING.slice(0, limit);
+  }
+});

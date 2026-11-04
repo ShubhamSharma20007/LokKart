@@ -5,18 +5,6 @@ import { Provider } from "react-redux";
 import { AuthProvider } from "@/components/auth-provider";
 import { hydrate } from "@/lib/store/slices/cartSlice";
 import { makeStore } from "@/lib/store/store";
-import { ThemeProvider } from "next-themes";
-
-// Filter out the known React 19 / next-themes false-positive warning in development
-// if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-//   const originalError = console.error;
-//   console.error = (...args: unknown[]) => {
-//     if (typeof args[0] === "string" && args[0].includes("Encountered a script tag")) {
-//       return;
-//     }
-//     originalError.apply(console, args);
-//   };
-// }
 
 const KEY = "bachatnix-cart";
 
@@ -45,10 +33,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }, [store]);
 
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-      <Provider store={store}>
-        <AuthProvider>{children}</AuthProvider>
-      </Provider>
-    </ThemeProvider>
+    <Provider store={store}>
+      <AuthProvider>{children}</AuthProvider>
+    </Provider>
   );
 }

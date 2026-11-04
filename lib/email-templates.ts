@@ -49,7 +49,7 @@ function baseLayout({
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${title}</title>
   <style>
-    body { margin: 0; padding: 0; background-color: #f4f6f8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; }
+    body { margin: 0; padding: 0; background-color: #f4f6f8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #000000; }
     table { border-collapse: collapse; }
     img { border: 0; outline: none; text-decoration: none; }
     a { color: #059669; text-decoration: none; }
@@ -66,7 +66,7 @@ function baseLayout({
           
           <!-- Header / Brand -->
           <tr>
-            <td style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 28px 32px; text-align: center;">
+            <td style="background: #000000; padding: 28px 32px; text-align: center;">
               <a href="${appUrl}" style="text-decoration: none;">
                 <span style="font-size: 24px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px;">Bachat<span style="color: #fcc618;">nix</span></span>
               </a>
@@ -107,10 +107,10 @@ export function renderOrderPlacedEmail(data: OrderEmailData): { subject: string;
       (it) => `
     <tr>
       <td style="padding: 12px 0; border-bottom: 1px solid #f1f5f9;">
-        <div style="font-weight: 600; font-size: 14px; color: #0f172a;">${it.title}</div>
+        <div style="font-weight: 600; font-size: 14px; color: #000000;">${it.title}</div>
         <div style="font-size: 12px; color: #64748b;">Qty: ${it.qty}</div>
       </td>
-      <td align="right" style="padding: 12px 0; border-bottom: 1px solid #f1f5f9; font-weight: 600; font-size: 14px; color: #0f172a;">
+      <td align="right" style="padding: 12px 0; border-bottom: 1px solid #f1f5f9; font-weight: 600; font-size: 14px; color: #000000;">
         ${formatINR(it.price * it.qty)}
       </td>
     </tr>`
@@ -121,7 +121,7 @@ export function renderOrderPlacedEmail(data: OrderEmailData): { subject: string;
     <!-- Hero Status Banner -->
     <div style="text-align: center; margin-bottom: 28px;">
       <div style="display: inline-block; width: 56px; height: 56px; line-height: 56px; border-radius: 50%; background-color: #d1fae5; color: #059669; font-size: 28px; margin-bottom: 12px;">✓</div>
-      <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #0f172a;">Order Placed Successfully!</h1>
+      <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #000000;">Order Placed Successfully!</h1>
       <p style="margin: 6px 0 0 0; color: #64748b; font-size: 14px;">Hi ${data.name}, thank you for your order.</p>
     </div>
 
@@ -131,7 +131,7 @@ export function renderOrderPlacedEmail(data: OrderEmailData): { subject: string;
         <tr>
           <td>
             <div style="font-size: 11px; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px;">Order Reference</div>
-            <div style="font-size: 16px; font-weight: 700; color: #0f172a; font-family: monospace;">${data.ref}</div>
+            <div style="font-size: 16px; font-weight: 700; color: #000000; font-family: monospace;">${data.ref}</div>
           </td>
           <td align="right">
             <div style="font-size: 11px; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px;">Payment Method</div>
@@ -144,7 +144,7 @@ export function renderOrderPlacedEmail(data: OrderEmailData): { subject: string;
     </div>
 
     <!-- Items List -->
-    <h3 style="margin: 0 0 12px 0; font-size: 15px; font-weight: 600; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">Order Summary</h3>
+    <h3 style="margin: 0 0 12px 0; font-size: 15px; font-weight: 600; color: #000000; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">Order Summary</h3>
     <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 20px;">
       ${itemsHtml}
     </table>
@@ -153,7 +153,7 @@ export function renderOrderPlacedEmail(data: OrderEmailData): { subject: string;
     <table width="100%" border="0" cellspacing="0" cellpadding="0" style="font-size: 13px; color: #64748b; margin-bottom: 24px;">
       <tr>
         <td style="padding: 4px 0;">Subtotal</td>
-        <td align="right" style="padding: 4px 0; color: #0f172a; font-weight: 500;">${formatINR(data.subtotal)}</td>
+        <td align="right" style="padding: 4px 0; color: #000000; font-weight: 500;">${formatINR(data.subtotal)}</td>
       </tr>
       <tr>
         <td style="padding: 4px 0;">Shipping</td>
@@ -163,26 +163,26 @@ export function renderOrderPlacedEmail(data: OrderEmailData): { subject: string;
         isCod && data.codCharge > 0
           ? `<tr>
         <td style="padding: 4px 0;">COD Handling Fee</td>
-        <td align="right" style="padding: 4px 0; color: #0f172a; font-weight: 500;">${formatINR(data.codCharge)}</td>
+        <td align="right" style="padding: 4px 0; color: #000000; font-weight: 500;">${formatINR(data.codCharge)}</td>
       </tr>`
           : ""
       }
       <tr>
-        <td style="padding: 10px 0 0 0; font-size: 16px; font-weight: 700; color: #0f172a; border-top: 1px solid #e2e8f0;">Total Amount</td>
-        <td align="right" style="padding: 10px 0 0 0; font-size: 18px; font-weight: 800; color: #0f172a; border-top: 1px solid #e2e8f0;">${formatINR(data.total)}</td>
+        <td style="padding: 10px 0 0 0; font-size: 16px; font-weight: 700; color: #000000; border-top: 1px solid #e2e8f0;">Total Amount</td>
+        <td align="right" style="padding: 10px 0 0 0; font-size: 18px; font-weight: 800; color: #000000; border-top: 1px solid #e2e8f0;">${formatINR(data.total)}</td>
       </tr>
     </table>
 
     <!-- Delivery Address -->
     <div style="background-color: #f8fafc; border-radius: 12px; padding: 16px; margin-bottom: 28px; font-size: 13px; color: #334155;">
-      <div style="font-weight: 600; color: #0f172a; margin-bottom: 4px;">Delivery Address</div>
+      <div style="font-weight: 600; color: #000000; margin-bottom: 4px;">Delivery Address</div>
       <div>${data.name} &middot; ${data.phone}</div>
       <div>${data.address}, ${data.city}, ${data.state} - ${data.pincode}</div>
     </div>
 
     <!-- Action Button -->
     <div style="text-align: center;">
-      <a href="${appUrl}/orders" style="display: inline-block; background-color: #fcc618; color: #0f172a; font-weight: 600; font-size: 14px; padding: 12px 28px; border-radius: 8px; text-decoration: none;">Track Order Status</a>
+      <a href="${appUrl}/orders" style="display: inline-block; background-color: #000000; color: #ffffff; font-weight: 600; font-size: 14px; padding: 12px 28px; border-radius: 8px; text-decoration: none;">Track Order Status</a>
     </div>
   `;
 
@@ -209,14 +209,14 @@ export function renderOrderShippedEmail(data: OrderEmailData): { subject: string
     <!-- Hero Status Banner -->
     <div style="text-align: center; margin-bottom: 28px;">
       <div style="display: inline-block; width: 56px; height: 56px; line-height: 56px; border-radius: 50%; background-color: #e0e7ff; color: #4338ca; font-size: 26px; margin-bottom: 12px;">🚚</div>
-      <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #0f172a;">Your Order is On the Way!</h1>
+      <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #000000;">Your Order is On the Way!</h1>
       <p style="margin: 6px 0 0 0; color: #64748b; font-size: 14px;">Order <strong>${data.ref}</strong> has been handed over to our courier partner.</p>
     </div>
 
     <!-- Courier Tracking Card -->
     <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: center;">
       <div style="font-size: 11px; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px;">Courier Partner</div>
-      <div style="font-size: 16px; font-weight: 700; color: #0f172a; margin: 2px 0 12px 0;">${data.courierName || "Express Courier"}</div>
+      <div style="font-size: 16px; font-weight: 700; color: #000000; margin: 2px 0 12px 0;">${data.courierName || "Express Courier"}</div>
 
       ${
         data.awb
@@ -264,7 +264,7 @@ export function renderOrderDeliveredEmail(data: OrderEmailData): { subject: stri
     <!-- Hero Status Banner -->
     <div style="text-align: center; margin-bottom: 28px;">
       <div style="display: inline-block; width: 64px; height: 64px; line-height: 64px; border-radius: 50%; background-color: #dcfce7; color: #15803d; font-size: 32px; margin-bottom: 12px;">🎉</div>
-      <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #0f172a;">Your Order Has Been Delivered!</h1>
+      <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #000000;">Your Order Has Been Delivered!</h1>
       <p style="margin: 6px 0 0 0; color: #64748b; font-size: 14px;">Order <strong>${data.ref}</strong> has been successfully delivered to you.</p>
     </div>
 
@@ -276,7 +276,7 @@ export function renderOrderDeliveredEmail(data: OrderEmailData): { subject: stri
 
     <!-- Review / Explore More -->
     <div style="text-align: center; margin-top: 24px;">
-      <a href="${appUrl}/products" style="display: inline-block; background-color: #0f172a; color: #ffffff; font-weight: 600; font-size: 14px; padding: 12px 28px; border-radius: 8px; text-decoration: none;">Shop More on Bachatnix &rarr;</a>
+      <a href="${appUrl}/products" style="display: inline-block; background-color: #000000; color: #ffffff; font-weight: 600; font-size: 14px; padding: 12px 28px; border-radius: 8px; text-decoration: none;">Shop More on Bachatnix &rarr;</a>
     </div>
   `;
 

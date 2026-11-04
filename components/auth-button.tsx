@@ -1,12 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useTheme } from "next-themes";
 import {
-  ClipboardList, Loader2, LogOut, Moon, Package, PackagePlus, Sun, UserRound,
+  ClipboardList, Loader2, LogOut, Package, PackagePlus, UserRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useMounted } from "@/lib/use-mounted";
 import { useAuth } from "./auth-provider";
 
 import {
@@ -30,7 +28,7 @@ function Avatar({ src, name, className }: { src: string | null; name: string; cl
     // eslint-disable-next-line @next/next/no-img-element
     <img src={src} alt="" referrerPolicy="no-referrer" className={`${className} rounded-full object-cover`} />
   ) : (
-    <span className={`${className} grid place-items-center rounded-full bg-brand font-bold text-brand-foreground`} aria-hidden>
+    <span className={`${className} grid place-items-center rounded-full bg-black font-bold text-white`} aria-hidden>
       {name.charAt(0).toUpperCase()}
     </span>
   );
@@ -38,17 +36,20 @@ function Avatar({ src, name, className }: { src: string | null; name: string; cl
 
 export function AuthButton() {
   const { user, loading, signingIn, signIn, signOut } = useAuth();
-  const { resolvedTheme, setTheme } = useTheme();
-  const mounted = useMounted();
-  const isDark = mounted && resolvedTheme === "dark";
 
   if (loading) {
-    return <div className="ml-1 size-9 animate-pulse rounded-full bg-muted" aria-hidden />;
+    return <div className="ml-1 size-9 animate-pulse rounded-full bg-gray-100" aria-hidden />;
   }
 
   if (!user) {
     return (
-      <Button variant="outline" size="sm" className="ml-1 gap-2" onClick={signIn} disabled={signingIn}>
+      <Button
+        variant="outline"
+        size="sm"
+        className="ml-1 gap-2 rounded-full border-black/10 hover:bg-black hover:text-white transition-colors"
+        onClick={signIn}
+        disabled={signingIn}
+      >
         {signingIn ? <Loader2 className="animate-spin" aria-hidden /> : <GoogleMark />}
         {signingIn ? "Signing in..." : "Sign in"}
       </Button>
@@ -59,17 +60,17 @@ export function AuthButton() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="rounded-full outline-none transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-        <Avatar src={user.photoUrl} name={user.name} className="size-9 ring-1 ring-border" />
+      <DropdownMenuTrigger className="rounded-full outline-none transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">
+        <Avatar src={user.photoUrl} name={user.name} className="size-9 ring-1 ring-black/10" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent align="end" className="w-56 bg-white text-black border-black/10 shadow-lg">
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-0.5">
-            <p className="text-sm font-medium leading-none">{user.name}</p>
-            <p className="truncate text-xs leading-none text-muted-foreground">{user.email}</p>
+            <p className="text-sm font-medium leading-none text-black">{user.name}</p>
+            <p className="truncate text-xs leading-none text-black/60">{user.email}</p>
           </div>
         </DropdownMenuLabel>
-        <DropdownMenuSeparator />
+        <DropdownMenuSeparator className="bg-black/5" />
 
         <DropdownMenuItem render={<Link href="/profile" className="flex w-full items-center gap-2" />}>
           <UserRound className="size-4" />
@@ -82,8 +83,8 @@ export function AuthButton() {
 
         {isAdmin && (
           <>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Admin</DropdownMenuLabel>
+            <DropdownMenuSeparator className="bg-black/5" />
+            <DropdownMenuLabel className="text-xs text-black/40 uppercase tracking-wider">Admin</DropdownMenuLabel>
             <DropdownMenuItem render={<Link href="/admin/products/new" className="flex w-full items-center gap-2" />}>
               <PackagePlus className="size-4" />
               <span>Add / manage products</span>
@@ -95,13 +96,8 @@ export function AuthButton() {
           </>
         )}
 
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => setTheme(isDark ? "light" : "dark")} className="cursor-pointer">
-          {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
-          <span>{isDark ? "Light mode" : "Dark mode"}</span>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onClick={signOut} className="cursor-pointer">
+        <DropdownMenuSeparator className="bg-black/5" />
+        <DropdownMenuItem variant="destructive" onClick={signOut} className="cursor-pointer text-red-600 focus:text-red-700">
           <LogOut className="size-4" />
           <span>Sign out</span>
         </DropdownMenuItem>

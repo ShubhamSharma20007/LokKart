@@ -128,8 +128,8 @@ const orgJsonLd = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${bricolage.variable} h-full antialiased`} suppressHydrationWarning>
-      <body className="flex min-h-full flex-col font-sans">
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${bricolage.variable} light h-full antialiased`} suppressHydrationWarning>
+      <body className="flex min-h-full flex-col font-sans bg-white text-black antialiased">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}

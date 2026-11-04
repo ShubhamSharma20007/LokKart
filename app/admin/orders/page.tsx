@@ -297,12 +297,12 @@ export default function AdminOrdersPage() {
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-muted-foreground">Delivered</p>
-              <p className="font-heading mt-1 text-2xl font-bold text-blue-600 dark:text-blue-400">
+              <p className="font-heading mt-1 text-2xl font-bold text-black">
                 {metrics.delivered}
               </p>
               <p className="text-[11px] text-muted-foreground mt-0.5">Completed deliveries</p>
             </div>
-            <div className="grid size-10 place-items-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+            <div className="grid size-10 place-items-center rounded-lg bg-black/5 text-black">
               <CheckCircle2 className="size-5" />
             </div>
           </CardContent>
@@ -402,7 +402,7 @@ export default function AdminOrdersPage() {
                           </p>
                           {o.awb ? (
                             <div className="mt-2 space-y-2">
-                              <span className="inline-flex items-center gap-1 rounded bg-blue-500/10 px-2 py-0.5 font-mono text-[11px] font-semibold text-blue-700 dark:text-blue-300">
+                              <span className="inline-flex items-center gap-1 rounded bg-black/5 px-2 py-0.5 font-mono text-[11px] font-semibold text-black">
                                 <Truck className="size-3" />
                                 {o.courierName || "Courier"}: {o.awb}
                               </span>

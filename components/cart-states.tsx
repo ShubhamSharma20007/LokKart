@@ -5,9 +5,9 @@ import { buttonVariants } from "@/components/ui/button";
 import { categoryIcons } from "./category-icon";
 import { categories } from "@/lib/products";
 import { cn } from "@/lib/utils";
-import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
 
 export function EmptyCart() {
   return (
@@ -45,61 +45,46 @@ export function EmptyCart() {
 }
 
 // Shown until the saved cart is loaded, so "empty" never flashes for a full cart.
-function SummarySkeleton() {
+export function CartSkeleton() {
   return (
-    <Card className="border-2">
-      <CardContent className="space-y-4">
+    <div className="grid gap-5 lg:grid-cols-[1fr_380px]" aria-busy="true" aria-label="Loading your cart">
+      {/* Items skeleton */}
+      <div className="rounded-2xl border border-black/10 overflow-hidden divide-y">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="flex gap-4 p-5">
+            <Skeleton className="shrink-0 h-28 w-28 rounded-xl" />
+            <div className="flex-1 space-y-2.5 py-1">
+              <Skeleton className="h-5 w-48 max-w-full" />
+              <Skeleton className="h-3.5 w-32" />
+              <div className="flex items-center justify-between pt-3">
+                <Skeleton className="h-6 w-20" />
+                <Skeleton className="h-9 w-28 rounded-full" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Summary skeleton */}
+      <div className="rounded-2xl border border-black/10 p-6 space-y-5">
         <Skeleton className="h-6 w-36" />
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div className="flex justify-between">
-            <Skeleton className="h-4 w-16" />
-            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-20" /><Skeleton className="h-4 w-20" />
           </div>
           <div className="flex justify-between">
-            <Skeleton className="h-4 w-28" />
-            <Skeleton className="h-6 w-16 rounded-full" />
+            <Skeleton className="h-4 w-28" /><Skeleton className="h-4 w-16" />
+          </div>
+          <div className="flex justify-between">
+            <Skeleton className="h-4 w-24" /><Skeleton className="h-4 w-12" />
           </div>
         </div>
         <Separator />
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-4 w-12" />
-          <Skeleton className="h-8 w-28" />
+        <div className="flex justify-between">
+          <Skeleton className="h-5 w-12" /><Skeleton className="h-7 w-24" />
         </div>
-        <Skeleton className="h-10 w-full rounded-lg" />
-        <Skeleton className="h-9 w-full rounded-lg" />
-      </CardContent>
-    </Card>
-  );
-}
-
-// Shown until the saved cart is loaded, so "empty" never flashes for a full cart.
-export function CartSkeleton() {
-  return (
-    <div className="mt-6 grid gap-8 lg:grid-cols-[1.5fr_1fr]" aria-busy="true" aria-label="Loading your cart">
-      <ul className="space-y-3">
-        {[0, 1, 2].map((i) => (
-          <li key={i}>
-            <Card>
-              <CardContent className="flex flex-wrap items-center gap-4">
-                <div className="min-w-0 flex-1 space-y-2">
-                  <Skeleton className="h-4 w-48 max-w-full" />
-                  <Skeleton className="h-3.5 w-32" />
-                </div>
-                <div className="flex items-center gap-1">
-                  <Skeleton className="size-8 rounded-lg" />
-                  <Skeleton className="mx-1 h-4 w-8" />
-                  <Skeleton className="size-8 rounded-lg" />
-                </div>
-                <Skeleton className="h-5 w-24" />
-                <Skeleton className="size-8 rounded-lg" />
-              </CardContent>
-            </Card>
-          </li>
-        ))}
-      </ul>
-      <aside className="lg:sticky lg:top-20 lg:self-start">
-        <SummarySkeleton />
-      </aside>
+        <Skeleton className="h-11 w-full rounded-full" />
+        <Skeleton className="h-12 w-full rounded-full" />
+      </div>
     </div>
   );
 }
@@ -136,7 +121,25 @@ export function CheckoutSkeleton() {
         </section>
       </div>
       <aside className="lg:sticky lg:top-20 lg:self-start">
-        <SummarySkeleton />
+        <Card className="border-2">
+          <CardContent className="space-y-4">
+            <Skeleton className="h-6 w-36" />
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <Skeleton className="h-4 w-16" /><Skeleton className="h-4 w-20" />
+              </div>
+              <div className="flex justify-between">
+                <Skeleton className="h-4 w-28" /><Skeleton className="h-6 w-16 rounded-full" />
+              </div>
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-4 w-12" /><Skeleton className="h-8 w-28" />
+            </div>
+            <Skeleton className="h-10 w-full rounded-lg" />
+            <Skeleton className="h-9 w-full rounded-lg" />
+          </CardContent>
+        </Card>
       </aside>
     </div>
   );

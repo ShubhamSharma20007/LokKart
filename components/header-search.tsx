@@ -13,18 +13,16 @@ import { cn } from "@/lib/utils";
 
 type Suggestion = Pick<StoreProduct, "id" | "title" | "category" | "price" | "imageUrl">;
 
-// Picking a suggestion, or pressing Enter, opens the product listing page for that search.
 const searchHref = (q: string) => listingHref(EMPTY_LISTING, { q });
 
 export function HeaderSearch() {
   return (
-    <Suspense fallback={<div className="h-9 w-full rounded-lg bg-muted/60" aria-hidden />}>
+    <Suspense fallback={<div className="h-10 sm:h-11 w-full rounded-full bg-[#F0F0F0]" aria-hidden />}>
       <SearchFromUrl />
     </Suspense>
   );
 }
 
-// Keeps the box in step with the page: shows the current search on /products, empty elsewhere.
 function SearchFromUrl() {
   const pathname = usePathname();
   const params = useSearchParams();
@@ -38,7 +36,7 @@ function Highlight({ text, term }: { text: string; term: string }) {
   return (
     <>
       {text.slice(0, i)}
-      <strong className="font-semibold">{text.slice(i, i + term.length)}</strong>
+      <strong className="font-semibold text-black">{text.slice(i, i + term.length)}</strong>
       {text.slice(i + term.length)}
     </>
   );
@@ -59,9 +57,8 @@ function SearchBox({ initialQuery }: { initialQuery: string }) {
   const items = result?.items ?? [];
   const settled = result?.term === term;
   const show = open && term.length >= 2;
-  const rowCount = items.length + 1; // the suggestions, plus "See all results"
+  const rowCount = items.length + 1;
 
-  // Ask the server for matches 250 ms after the shopper stops typing.
   useEffect(() => {
     if (term.length < 2) return;
     const ctrl = new AbortController();
@@ -82,7 +79,6 @@ function SearchBox({ initialQuery }: { initialQuery: string }) {
     };
   }, [term]);
 
-  // Close the list when clicking anywhere else.
   useEffect(() => {
     const onPointerDown = (e: PointerEvent) => {
       if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
@@ -117,12 +113,12 @@ function SearchBox({ initialQuery }: { initialQuery: string }) {
   };
 
   const rowClass = (i: number) =>
-    cn("flex items-center gap-3 px-3 py-2 text-sm outline-none", active === i ? "bg-muted" : "hover:bg-muted/60");
+    cn("flex items-center gap-3 px-3 py-2 text-sm outline-none transition-colors", active === i ? "bg-gray-100" : "hover:bg-gray-50");
 
   return (
     <div ref={rootRef} className="relative w-full">
-      <form role="search" onSubmit={onSubmit}>
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+      <form role="search" onSubmit={onSubmit} className="relative w-full">
+        <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-black/40" aria-hidden />
         <Input
           ref={inputRef}
           type="text"
@@ -135,7 +131,7 @@ function SearchBox({ initialQuery }: { initialQuery: string }) {
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
-          placeholder="Search for products"
+          placeholder="Search for products..."
           aria-label="Search products"
           aria-expanded={show}
           aria-controls={listId}
@@ -143,7 +139,7 @@ function SearchBox({ initialQuery }: { initialQuery: string }) {
           aria-activedescendant={show && active >= 0 ? `${listId}-${active}` : undefined}
           autoComplete="off"
           enterKeyHint="search"
-          className="h-9 pr-9 pl-9"
+          className="h-10 sm:h-11 w-full rounded-full bg-[#F0F0F0] border-0 pr-10 pl-11 text-sm text-black placeholder:text-black/40 shadow-none focus-visible:ring-1 focus-visible:ring-black/20"
         />
         {value && (
           <button
@@ -154,21 +150,21 @@ function SearchBox({ initialQuery }: { initialQuery: string }) {
               setOpen(false);
               inputRef.current?.focus();
             }}
-            className="absolute top-1/2 right-2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="absolute top-1/2 right-3 grid size-6 -translate-y-1/2 place-items-center rounded-full text-black/40 hover:bg-black/10 hover:text-black"
           >
-            <X className="size-4" aria-hidden />
+            <X className="size-3.5" aria-hidden />
           </button>
         )}
       </form>
 
       {show && (
-        <div className="absolute inset-x-0 top-full z-40 mt-1.5 overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-lg">
+        <div className="absolute inset-x-0 top-full z-40 mt-2 overflow-hidden rounded-2xl border border-black/10 bg-white text-black shadow-xl">
           <p className="sr-only" aria-live="polite">
             {!settled ? "Searching" : items.length === 0 ? "No matching products" : `${items.length} suggestions`}
           </p>
 
           {items.length === 0 && (
-            <p className="px-3 py-3 text-sm text-muted-foreground">
+            <p className="px-4 py-3 text-sm text-black/50">
               {settled ? `No products found for “${term}”` : "Searching..."}
             </p>
           )}
@@ -193,16 +189,16 @@ function SearchBox({ initialQuery }: { initialQuery: string }) {
                   }}
                   className={rowClass(i)}
                 >
-                  <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-md bg-muted text-primary/60">
-                    <ProductImage product={p} width={96} iconClassName="size-5" />
+                  <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-lg bg-[#F0EEED]">
+                    <ProductImage product={p} width={96} iconClassName="size-5 text-black/40" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate">
+                    <span className="block truncate text-black font-medium">
                       <Highlight text={p.title} term={term} />
                     </span>
-                    <span className="block truncate text-xs text-muted-foreground">in {p.category}</span>
+                    <span className="block truncate text-xs text-black/50">in {p.category}</span>
                   </span>
-                  <span className="shrink-0 font-medium">{formatINR(p.price)}</span>
+                  <span className="shrink-0 font-bold text-black">{formatINR(p.price)}</span>
                 </Link>
               </li>
             ))}
@@ -213,7 +209,7 @@ function SearchBox({ initialQuery }: { initialQuery: string }) {
               aria-selected={active === items.length}
               onMouseEnter={() => setActive(items.length)}
               onMouseDown={(e) => e.preventDefault()}
-              className={cn(items.length > 0 && "border-t")}
+              className={cn(items.length > 0 && "border-t border-black/5")}
             >
               <Link
                 href={searchHref(term)}
@@ -223,7 +219,7 @@ function SearchBox({ initialQuery }: { initialQuery: string }) {
                   setOpen(false);
                   setActive(-1);
                 }}
-                className={cn(rowClass(items.length), "font-medium text-primary")}
+                className={cn(rowClass(items.length), "font-semibold text-black")}
               >
                 <Search className="size-4 shrink-0" aria-hidden />
                 <span className="truncate">See all results for “{term}”</span>
