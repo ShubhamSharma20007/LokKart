@@ -87,6 +87,9 @@ export const metadata: Metadata = {
     shortcut: "/favicon.png",
     apple: "/app-icon.png",
   },
+  verification: {
+    google: "mxzOA0MOF2vTkx9m6lHCu_FbG9W9j_Rax2Sobuh4JEc",
+  },
 };
 
 const orgJsonLd = {
@@ -131,8 +134,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
         />
-        {/* Google Site verification */}
-        <meta name="google-site-verification" content="mxzOA0MOF2vTkx9m6lHCu_FbG9W9j_Rax2Sobuh4JEc" />
         
         <Providers>
           <SiteHeader />
