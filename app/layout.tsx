@@ -132,7 +132,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
         />
         {/* Google Site verification */}
-        <meta name="google-site-verification" content="hKl6cq7r24eRXqxnb89jKvoP7M1SOTsW2oGRI4dZpKA" />
+        <meta name="google-site-verification" content="mxzOA0MOF2vTkx9m6lHCu_FbG9W9j_Rax2Sobuh4JEc" />
+        
         <Providers>
           <SiteHeader />
           <div className="flex flex-1 flex-col">
