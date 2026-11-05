@@ -75,7 +75,7 @@ export async function SiteFooter() {
             {/* Column 1: Brand */}
             <div className="space-y-4">
               <Link href="/" className="font-heading text-3xl font-black tracking-tight text-black inline-block">
-                Bachat<span className="text-signal">nix</span>
+                Bachat<span className="text-[#B45309]">nix</span>
               </Link>
               <p className="text-sm text-black/60 leading-relaxed max-w-[220px]">
                 We have clothes that suits your style and which you&apos;re proud to wear. From women to men.

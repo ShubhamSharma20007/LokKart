@@ -19,10 +19,16 @@ export function ProductImage({
   iconClassName?: string;
 }) {
   if (product.imageUrl) {
+    const smallWidth = Math.max(160, Math.round(width * 0.5));
+    const midWidth = width;
+    const largeWidth = Math.round(width * 1.5);
+
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={imageSrc(product.imageUrl, width)}
+        src={imageSrc(product.imageUrl, midWidth)}
+        srcSet={`${imageSrc(product.imageUrl, smallWidth)} ${smallWidth}w, ${imageSrc(product.imageUrl, midWidth)} ${midWidth}w, ${imageSrc(product.imageUrl, largeWidth)} ${largeWidth}w`}
+        sizes="(max-width: 640px) 180px, (max-width: 1024px) 260px, 360px"
         alt={product.title}
         loading={eager ? "eager" : "lazy"}
         decoding="async"

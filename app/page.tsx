@@ -22,6 +22,20 @@ function ProductGridSkeleton() {
   );
 }
 
+function ProductSectionSkeleton({ title }: { title: string }) {
+  return (
+    <section className="mx-auto max-w-6xl px-4 py-12 sm:py-16">
+      <h2 className="font-heading text-3xl sm:text-4xl md:text-5xl font-black text-center text-black uppercase tracking-tight mb-8 sm:mb-12">
+        {title}
+      </h2>
+      <ProductGridSkeleton />
+      <div className="mt-8 sm:mt-12 text-center">
+        <div className="inline-block h-12 w-36 rounded-full border border-black/10 bg-gray-100 animate-pulse" />
+      </div>
+    </section>
+  );
+}
+
 // ─── Async Product Showcase Sections ─────────────────────────────────────────
 async function ProductSections() {
   await connection();
@@ -157,8 +171,10 @@ export default function Home() {
                 alt="Fashion model showcasing our clothing collection"
                 width={800}
                 height={700}
+                sizes="(max-width: 640px) 390px, (max-width: 1024px) 50vw, 600px"
                 className="relative z-10 w-full h-[280px] sm:h-[380px] md:h-auto md:max-h-[680px] object-contain object-bottom"
                 priority
+                fetchPriority="high"
               />
             </div>
 
@@ -194,9 +210,12 @@ export default function Home() {
       ════════════════════════════════════════════ */}
       <Suspense
         fallback={
-          <div className="mx-auto max-w-6xl space-y-16 px-4 py-16">
-            <ProductGridSkeleton />
-            <ProductGridSkeleton />
+          <div>
+            <ProductSectionSkeleton title="NEW ARRIVALS" />
+            <div className="mx-auto max-w-6xl px-4">
+              <hr className="border-black/10" />
+            </div>
+            <ProductSectionSkeleton title="TOP SELLING" />
           </div>
         }
       >
@@ -218,10 +237,13 @@ export default function Home() {
               href="/products?category=Casual"
               className="col-span-12 md:col-span-5 relative h-[200px] sm:h-[240px] md:h-[280px] rounded-[20px] bg-white overflow-hidden group shadow-sm transition-transform duration-300 hover:scale-[1.01]"
             >
-              <img
+              <Image
                 src="/causal.png"
                 alt="Casual Dress Style"
-                className="absolute inset-0 size-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                fill
+                sizes="(max-width: 768px) 100vw, 42vw"
+                loading="lazy"
+                className="object-cover object-center transition-transform duration-300 group-hover:scale-105"
               />
               <span className="absolute top-5 left-5 z-10 font-heading text-xl sm:text-2xl font-bold text-black drop-shadow-sm">
                 Casual
@@ -233,10 +255,13 @@ export default function Home() {
               href="/products?category=Formal"
               className="col-span-12 md:col-span-7 relative h-[200px] sm:h-[240px] md:h-[280px] rounded-[20px] bg-white overflow-hidden group shadow-sm transition-transform duration-300 hover:scale-[1.01]"
             >
-              <img
+              <Image
                 src="/formal.png"
                 alt="Formal Dress Style"
-                className="absolute inset-0 size-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                fill
+                sizes="(max-width: 768px) 100vw, 58vw"
+                loading="lazy"
+                className="object-cover object-center transition-transform duration-300 group-hover:scale-105"
               />
               <span className="absolute top-5 left-5 z-10 font-heading text-xl sm:text-2xl font-bold text-black drop-shadow-sm">
                 Formal
@@ -248,10 +273,13 @@ export default function Home() {
               href="/products?category=Party"
               className="col-span-12 md:col-span-7 relative h-[200px] sm:h-[240px] md:h-[280px] rounded-[20px] bg-white overflow-hidden group shadow-sm transition-transform duration-300 hover:scale-[1.01]"
             >
-              <img
+              <Image
                 src="/party.png"
                 alt="Party Dress Style"
-                className="absolute inset-0 size-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                fill
+                sizes="(max-width: 768px) 100vw, 58vw"
+                loading="lazy"
+                className="object-cover object-center transition-transform duration-300 group-hover:scale-105"
               />
               <span className="absolute top-5 left-5 z-10 font-heading text-xl sm:text-2xl font-bold text-black drop-shadow-sm">
                 Party
@@ -263,10 +291,13 @@ export default function Home() {
               href="/products?category=Sportswear"
               className="col-span-12 md:col-span-5 relative h-[200px] sm:h-[240px] md:h-[280px] rounded-[20px] bg-white overflow-hidden group shadow-sm transition-transform duration-300 hover:scale-[1.01]"
             >
-              <img
+              <Image
                 src="/gym.png"
                 alt="Gym Dress Style"
-                className="absolute inset-0 size-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                fill
+                sizes="(max-width: 768px) 100vw, 42vw"
+                loading="lazy"
+                className="object-cover object-center transition-transform duration-300 group-hover:scale-105"
               />
               <span className="absolute top-5 left-5 z-10 font-heading text-xl sm:text-2xl font-bold text-black drop-shadow-sm">
                 Gym

@@ -26,7 +26,14 @@ function GoogleMark() {
 function Avatar({ src, name, className }: { src: string | null; name: string; className: string }) {
   return src ? (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt="" referrerPolicy="no-referrer" className={`${className} rounded-full object-cover`} />
+    <img
+      src={src}
+      alt={name || "User profile photo"}
+      width={36}
+      height={36}
+      referrerPolicy="no-referrer"
+      className={`${className} rounded-full object-cover`}
+    />
   ) : (
     <span className={`${className} grid place-items-center rounded-full bg-black font-bold text-white`} aria-hidden>
       {name.charAt(0).toUpperCase()}
@@ -60,7 +67,10 @@ export function AuthButton() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="rounded-full outline-none transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">
+      <DropdownMenuTrigger
+        aria-label="User account menu"
+        className="rounded-full outline-none transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
+      >
         <Avatar src={user.photoUrl} name={user.name} className="size-9 ring-1 ring-black/10" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56 bg-white text-black border-black/10 shadow-lg">

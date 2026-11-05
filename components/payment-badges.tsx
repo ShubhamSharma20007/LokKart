@@ -21,6 +21,10 @@ export function PaymentBadges({ className = "" }: { className?: string }) {
           <img
             src={pm.src}
             alt={pm.name}
+            width={40}
+            height={22}
+            loading="lazy"
+            decoding="async"
             className="max-h-5 sm:max-h-5.5 w-auto object-contain"
           />
         </div>

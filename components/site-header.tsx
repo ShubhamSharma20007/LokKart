@@ -110,7 +110,7 @@ export function SiteHeader() {
             href="/"
             className="font-heading shrink-0 text-2xl sm:text-3xl font-black tracking-tight text-black flex items-center"
           >
-            Bachat<span className="text-signal">nix</span>
+            Bachat<span className="text-[#B45309]">nix</span>
           </Link>
 
           {/* Desktop nav links */}
