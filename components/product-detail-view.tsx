@@ -2,9 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Star, Check, Minus, Plus } from "lucide-react";
+import { Star, Check, Minus, Plus, Ruler } from "lucide-react";
 import { toast } from "sonner";
 import { ProductGallery } from "@/components/product-gallery";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import { addItem } from "@/lib/store/slices/cartSlice";
 import { discountPct, formatINR, getColorHex } from "@/lib/products";
@@ -231,7 +238,70 @@ export function ProductDetailView({ product }: { product: StoreProduct }) {
 
         {/* ── Choose Size ── */}
         <div className="space-y-2.5 sm:space-y-3">
-          <p className="text-xs sm:text-sm text-black/60 font-medium">Choose Size</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs sm:text-sm text-black/60 font-medium">Choose Size</p>
+            <Dialog>
+              <DialogTrigger className="inline-flex items-center gap-1.5 text-xs text-black/70 hover:text-black underline underline-offset-4 cursor-pointer font-medium">
+                <Ruler className="size-3.5" />
+                <span>Size Guide</span>
+              </DialogTrigger>
+              <DialogContent className="max-w-md bg-white p-6 rounded-3xl border border-black/10">
+                <DialogHeader>
+                  <DialogTitle className="font-heading text-lg font-bold text-black flex items-center gap-2">
+                    <Ruler className="size-5" />
+                    Size Guide (Regular Fit)
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="mt-3 overflow-hidden rounded-xl border border-black/10">
+                  <table className="w-full text-left text-xs sm:text-sm">
+                    <thead className="bg-[#F0F0F0] text-black font-semibold">
+                      <tr>
+                        <th className="py-2.5 px-3">Size</th>
+                        <th className="py-2.5 px-3">Chest</th>
+                        <th className="py-2.5 px-3">Length</th>
+                        <th className="py-2.5 px-3">Shoulder</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-black/5 text-black/80 font-medium">
+                      <tr>
+                        <td className="py-2 px-3 font-bold text-black">S (Small)</td>
+                        <td className="py-2 px-3">38" (96 cm)</td>
+                        <td className="py-2 px-3">27" (68 cm)</td>
+                        <td className="py-2 px-3">16.5"</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 px-3 font-bold text-black">M (Medium)</td>
+                        <td className="py-2 px-3">40" (101 cm)</td>
+                        <td className="py-2 px-3">28" (71 cm)</td>
+                        <td className="py-2 px-3">17.5"</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 px-3 font-bold text-black">L (Large)</td>
+                        <td className="py-2 px-3">42" (106 cm)</td>
+                        <td className="py-2 px-3">29" (73 cm)</td>
+                        <td className="py-2 px-3">18.5"</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 px-3 font-bold text-black">XL (X-Large)</td>
+                        <td className="py-2 px-3">44" (111 cm)</td>
+                        <td className="py-2 px-3">30" (76 cm)</td>
+                        <td className="py-2 px-3">19.5"</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 px-3 font-bold text-black">XXL</td>
+                        <td className="py-2 px-3">46" (116 cm)</td>
+                        <td className="py-2 px-3">31" (78 cm)</td>
+                        <td className="py-2 px-3">20.5"</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p className="mt-3 text-[11px] sm:text-xs text-black/50">
+                  Tip: All measurements are in standard regular fit. If you prefer a loose or oversized look, choose one size up.
+                </p>
+              </DialogContent>
+            </Dialog>
+          </div>
           <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
             {availableSizes.map((size) => {
               const isSelected = selectedSize === size;

@@ -205,10 +205,61 @@ export function ProductReviews({ productId }: { productId: string }) {
         <div className="py-8 sm:py-10 max-w-3xl space-y-4 text-black/70 text-sm sm:text-base leading-relaxed">
           <h3 className="font-heading text-lg font-bold text-black">Frequently Asked Questions</h3>
           <div className="space-y-3.5">
-            <div className="rounded-2xl border border-black/10 p-4 sm:p-5">
-              <p className="font-bold text-black text-sm sm:text-base">How do I choose the right size?</p>
-              <p className="mt-1 text-xs sm:text-sm text-black/60">
-                Please refer to the size presets. Our garments follow standard regular fit dimensions.
+            <div className="rounded-2xl border border-black/10 p-4 sm:p-5 space-y-3">
+              <div>
+                <p className="font-bold text-black text-sm sm:text-base">How do I choose the right size?</p>
+                <p className="mt-1 text-xs sm:text-sm text-black/60">
+                  Our garments follow standard regular-fit dimensions. Refer to the size guide below:
+                </p>
+              </div>
+
+              {/* Sizing Chart Table */}
+              <div className="overflow-x-auto rounded-xl border border-black/10 bg-white">
+                <table className="w-full text-left text-xs sm:text-sm">
+                  <thead className="bg-[#F0F0F0] text-black font-semibold">
+                    <tr>
+                      <th className="py-2.5 px-3">Size</th>
+                      <th className="py-2.5 px-3">Chest (in/cm)</th>
+                      <th className="py-2.5 px-3">Length (in/cm)</th>
+                      <th className="py-2.5 px-3">Shoulder</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-black/5 text-black/80 font-medium">
+                    <tr>
+                      <td className="py-2 px-3 font-bold text-black">S (Small)</td>
+                      <td className="py-2 px-3">38" (96 cm)</td>
+                      <td className="py-2 px-3">27" (68 cm)</td>
+                      <td className="py-2 px-3">16.5"</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-3 font-bold text-black">M (Medium)</td>
+                      <td className="py-2 px-3">40" (101 cm)</td>
+                      <td className="py-2 px-3">28" (71 cm)</td>
+                      <td className="py-2 px-3">17.5"</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-3 font-bold text-black">L (Large)</td>
+                      <td className="py-2 px-3">42" (106 cm)</td>
+                      <td className="py-2 px-3">29" (73 cm)</td>
+                      <td className="py-2 px-3">18.5"</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-3 font-bold text-black">XL (X-Large)</td>
+                      <td className="py-2 px-3">44" (111 cm)</td>
+                      <td className="py-2 px-3">30" (76 cm)</td>
+                      <td className="py-2 px-3">19.5"</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-3 font-bold text-black">XXL</td>
+                      <td className="py-2 px-3">46" (116 cm)</td>
+                      <td className="py-2 px-3">31" (78 cm)</td>
+                      <td className="py-2 px-3">20.5"</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-[11px] sm:text-xs text-black/50">
+                Tip: If you prefer an oversized or relaxed fit, we recommend selecting one size larger.
               </p>
             </div>
             <div className="rounded-2xl border border-black/10 p-4 sm:p-5">
