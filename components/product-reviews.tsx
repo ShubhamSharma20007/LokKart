@@ -171,6 +171,7 @@ export function ProductReviews({ productId }: { productId: string }) {
             <button
               key={tab.key}
               type="button"
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               onClick={() => setActiveTab(tab.key as any)}
               className={cn(
                 "pb-3.5 sm:pb-5 text-sm sm:text-lg font-medium transition-colors relative flex-1 text-center cursor-pointer",

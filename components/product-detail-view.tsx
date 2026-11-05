@@ -284,6 +284,7 @@ export function ProductDetailView({ product }: { product: StoreProduct }) {
           {/* Add to Cart Black Pill */}
           <button
             type="button"
+            suppressHydrationWarning
             onClick={handleAddToCart}
             disabled={product.stock < 1}
             className="flex-1 rounded-full bg-black py-3 sm:py-4 text-center text-xs sm:text-base font-semibold text-white hover:bg-black/85 active:scale-[0.99] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm truncate"
