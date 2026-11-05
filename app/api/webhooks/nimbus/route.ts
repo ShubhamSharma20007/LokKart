@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
       `[NimbusWebhook] Received event=${eventName} for order=${orderNumber || nimbusOrderId}, status=${nimbusStatus}, awb=${awb}`
     );
 
-    if (!nimbusOrderId && !orderNumber) {
+    if (!nimbusOrderId && !orderNumber && !awb) {
       // Return 200 so Nimbus does not spam retries for malformed events
       return NextResponse.json({ success: true, message: "Ignored (no identifier)" });
     }
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
       where: {
         OR: [
           ...(nimbusOrderId ? [{ nimbusOrderId }] : []),
-          ...(orderNumber ? [{ ref: orderNumber }] : []),
+          ...(orderNumber ? [{ ref: orderNumber }, { ref: orderNumber.startsWith("ORD-") ? orderNumber : `ORD-${orderNumber}` }] : []),
           ...(awb ? [{ awb }] : []),
         ],
       },
