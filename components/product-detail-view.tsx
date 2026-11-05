@@ -240,12 +240,12 @@ export function ProductDetailView({ product }: { product: StoreProduct }) {
         <div className="space-y-2.5 sm:space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-xs sm:text-sm text-black/60 font-medium">Choose Size</p>
-            <Dialog>
+            <Dialog >
               <DialogTrigger className="inline-flex items-center gap-1.5 text-xs text-black/70 hover:text-black underline underline-offset-4 cursor-pointer font-medium">
                 <Ruler className="size-3.5" />
                 <span>Size Guide</span>
               </DialogTrigger>
-              <DialogContent className="max-w-md bg-white p-6 rounded-3xl border border-black/10">
+              <DialogContent className="max-w-lg bg-white p-6 rounded-3xl border border-black/10">
                 <DialogHeader>
                   <DialogTitle className="font-heading text-lg font-bold text-black flex items-center gap-2">
                     <Ruler className="size-5" />
