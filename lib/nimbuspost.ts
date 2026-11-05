@@ -504,11 +504,13 @@ export function verifyNimbusWebhookSignature(
   }
   if (!signatureHeader) return false;
 
-  const expected = "sha256=" + crypto.createHmac("sha256", webhookSecret).update(rawBody).digest("hex");
+  const hexHash = crypto.createHmac("sha256", webhookSecret).update(rawBody).digest("hex");
+  const cleanHeader = signatureHeader.replace(/^sha256=/i, "").trim();
+
   try {
     return (
-      signatureHeader.length === expected.length &&
-      crypto.timingSafeEqual(Buffer.from(signatureHeader), Buffer.from(expected))
+      cleanHeader.length === hexHash.length &&
+      crypto.timingSafeEqual(Buffer.from(cleanHeader), Buffer.from(hexHash))
     );
   } catch {
     return false;
@@ -519,29 +521,60 @@ export function verifyNimbusWebhookSignature(
  * Maps NimbusPost lifecycle statuses to Bachatnix Prisma OrderStatus enum.
  */
 export function mapNimbusStatusToOrderStatus(nimbusStatus: string): OrderStatus | null {
-  const s = nimbusStatus.toLowerCase().trim();
+  if (!nimbusStatus) return null;
+  // Normalize: lower-case and convert all spaces, hyphens, and underscores to single underscore
+  const s = nimbusStatus.toLowerCase().trim().replace(/[\s\-_]+/g, "_");
+
   switch (s) {
     case "created":
       return "PLACED";
+
+    // Booking & Pickup stages -> CONFIRMED
     case "booked":
+    case "manifest_generated":
     case "pickup_scheduled":
     case "pickup_rescheduled":
     case "pickup_pending":
     case "out_for_pickup":
+    case "pickup_queued":
       return "CONFIRMED";
+
+    // Transit & Dispatch stages -> SHIPPED
+    case "shipped":
+    case "picked":
+    case "pickup_done":
     case "pickup_completed":
     case "in_transit":
     case "reached_at_destination":
     case "out_for_delivery":
+    case "dispatched":
+    case "at_hub":
       return "SHIPPED";
+
+    // Delivered
     case "delivered":
+    case "delivery_completed":
       return "DELIVERED";
+
+    // Cancellation / Returns / Issues
     case "cancelled":
+    case "canceled":
+    case "rto_initiated":
+    case "rto_in_transit":
+    case "rto_out_for_delivery":
     case "rto_delivered":
+    case "rto_undelivered":
     case "lost":
     case "damaged":
+    case "failed":
       return "CANCELLED";
+
     default:
+      // Fallback substring checks for edge cases
+      if (s.includes("deliver") && !s.includes("undeliver") && !s.includes("rto")) return "DELIVERED";
+      if (s.includes("transit") || s.includes("shipped") || s.includes("picked")) return "SHIPPED";
+      if (s.includes("pickup") || s.includes("book")) return "CONFIRMED";
+      if (s.includes("cancel") || s.includes("rto") || s.includes("lost")) return "CANCELLED";
       return null;
   }
 }

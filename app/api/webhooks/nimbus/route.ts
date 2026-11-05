@@ -62,6 +62,7 @@ export async function POST(req: NextRequest) {
         OR: [
           ...(nimbusOrderId ? [{ nimbusOrderId }] : []),
           ...(orderNumber ? [{ ref: orderNumber }] : []),
+          ...(awb ? [{ awb }] : []),
         ],
       },
       include: {

@@ -234,11 +234,11 @@ export default function OrdersPage() {
                         </span>
                       </div>
                     )}
-                    {o.status !== "PLACED" && o.status !== "CANCELLED" && (
+                    {(o.awb || (o.status !== "PLACED" && o.status !== "CANCELLED")) && (
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-8 rounded-full border-black/15 text-xs font-semibold hover:bg-black hover:text-white transition-colors"
+                        className="h-8 rounded-full border-black/15 text-xs font-semibold hover:bg-black hover:text-white transition-colors cursor-pointer"
                         onClick={() => setTrackingOrder(o)}
                       >
                         <Truck className="size-3.5 mr-1.5" aria-hidden /> Track Order

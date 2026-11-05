@@ -537,6 +537,20 @@ export async function getOrderTracking(
 
     const tracking = await trackNimbusOrder(order.nimbusOrderId);
     if (tracking.ok) {
+      const liveStatus = tracking.data.orderStatus ? mapNimbusStatusToOrderStatus(tracking.data.orderStatus) : null;
+      if (liveStatus && liveStatus !== order.status) {
+        await prisma.order.update({
+          where: { id: order.id },
+          data: {
+            status: liveStatus,
+            ...(tracking.data.awb && !order.awb ? { awb: tracking.data.awb } : {}),
+            ...(tracking.data.courierName && !order.courierName ? { courierName: tracking.data.courierName } : {}),
+            ...(tracking.data.trackingUrl && !order.trackingUrl ? { trackingUrl: tracking.data.trackingUrl } : {}),
+          },
+        });
+        order.status = liveStatus;
+      }
+
       return {
         ok: true,
         status: order.status,
