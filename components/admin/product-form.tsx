@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { X } from "lucide-react";
+import { X, Palette, Sparkles, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Field, FormError, SubmitButton } from "@/components/formField";
 import { MultiImageUpload } from "@/components/multi-image-upload";
@@ -15,6 +15,7 @@ import { auth } from "@/hooks/useFirebaseAuth";
 import { createProduct, updateProduct } from "@/lib/actions";
 import { initialState, type FormState } from "@/lib/forms";
 import { categories, CLOTHING_COLORS, getColorHex } from "@/lib/products";
+import { compileColorFromHex, isValidHex, normalizeHex, type ColorCompileResult } from "@/lib/color-namer";
 import type { AdminProduct } from "@/lib/admin-actions";
 
 export const SHIPPING_PRESETS = [
@@ -98,6 +99,9 @@ export function ProductForm({
   const [customSize, setCustomSize] = useState("");
   const [colors, setColors] = useState<string[]>(product?.colors || []);
   const [customColor, setCustomColor] = useState("");
+  const [hexInput, setHexInput] = useState("");
+  const [compiledResult, setCompiledResult] = useState<ColorCompileResult | null>(null);
+  const [colorNameInput, setColorNameInput] = useState("");
 
   const toggleSize = (s: string) => {
     setSizes((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
@@ -121,6 +125,31 @@ export function ProductForm({
       setColors((prev) => [...prev, trimmed]);
       setCustomColor("");
     }
+  };
+
+  const handleHexChange = (val: string) => {
+    let clean = val.trim();
+    if (clean && !clean.startsWith("#")) clean = `#${clean}`;
+    setHexInput(clean);
+    if (isValidHex(clean)) {
+      const res = compileColorFromHex(clean);
+      setCompiledResult(res);
+      setColorNameInput(res?.primaryName || "");
+    } else {
+      setCompiledResult(null);
+      setColorNameInput("");
+    }
+  };
+
+  const addHexColor = (overrideName?: string) => {
+    const chosenName = (overrideName || colorNameInput || compiledResult?.primaryName || "").trim();
+    if (!chosenName) return;
+    if (!colors.includes(chosenName)) {
+      setColors((prev) => [...prev, chosenName]);
+    }
+    setHexInput("");
+    setCompiledResult(null);
+    setColorNameInput("");
   };
   const handled = useRef<FormState | null>(null);
 
@@ -532,7 +561,106 @@ export function ProductForm({
           </div>
         </div>
 
-        {/* Custom Color Input */}
+        {/* Hex Color Code Compiler Tool (color-name & color-namer) */}
+        <div className="rounded-lg border border-border/80 bg-muted/20 p-3 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+              <Palette className="size-3.5 text-primary" />
+              <span>Hex Color Code Compiler</span>
+              <span className="text-[10px] text-muted-foreground hidden sm:inline">(e.g. #BE6D84 &rarr; Turkish Rose)</span>
+            </div>
+            {compiledResult && (
+              <span className="text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                {compiledResult.hex}
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Native Color Picker Swatch */}
+            <label
+              title="Click to pick a color"
+              className="relative flex items-center justify-center size-8 rounded-md border border-input cursor-pointer hover:border-black/50 transition-all shrink-0 overflow-hidden shadow-2xs"
+              style={{ backgroundColor: isValidHex(hexInput) ? normalizeHex(hexInput) : "#BE6D84" }}
+            >
+              <input
+                type="color"
+                value={isValidHex(hexInput) ? normalizeHex(hexInput) : "#BE6D84"}
+                onChange={(e) => handleHexChange(e.target.value)}
+                className="opacity-0 absolute inset-0 size-full cursor-pointer"
+              />
+            </label>
+
+            {/* Hex Input Box */}
+            <Input
+              value={hexInput}
+              onChange={(e) => handleHexChange(e.target.value)}
+              placeholder="#BE6D84"
+              maxLength={7}
+              className="h-8 text-xs font-mono uppercase w-28 shrink-0 bg-background"
+            />
+
+            {/* Compiled Name Input */}
+            <div className="flex-1 min-w-[150px] relative">
+              <Input
+                value={colorNameInput}
+                onChange={(e) => setColorNameInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addHexColor();
+                  }
+                }}
+                placeholder={compiledResult ? compiledResult.primaryName : "Name auto-compiles on typing hex"}
+                disabled={!compiledResult}
+                className="h-8 text-xs bg-background"
+              />
+            </div>
+
+            {/* Add Button */}
+            <Button
+              type="button"
+              size="sm"
+              disabled={!isValidHex(hexInput) || !colorNameInput.trim()}
+              onClick={() => addHexColor()}
+              className="h-8 text-xs shrink-0 gap-1 bg-black text-white hover:bg-black/90 font-medium"
+            >
+              <Plus className="size-3.5" />
+              Add Color
+            </Button>
+          </div>
+
+          {/* Compiled Name Suggestions / Palette Variations */}
+          {compiledResult && compiledResult.suggestions.length > 0 && (
+            <div className="pt-1 border-t border-border/50 flex flex-wrap items-center gap-1.5 text-[11px]">
+              <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
+                <Sparkles className="size-3 text-amber-500" /> Variations:
+              </span>
+              {compiledResult.suggestions.map((sug) => {
+                const isCurrent = colorNameInput.toLowerCase() === sug.name.toLowerCase();
+                return (
+                  <button
+                    key={`${sug.source}-${sug.name}`}
+                    type="button"
+                    onClick={() => setColorNameInput(sug.name)}
+                    className={cn(
+                      "inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] border transition-colors",
+                      isCurrent
+                        ? "bg-primary text-primary-foreground border-primary font-semibold shadow-2xs"
+                        : "bg-background text-foreground border-border hover:bg-muted"
+                    )}
+                    title={`Source: ${sug.source}`}
+                  >
+                    <span>{sug.name}</span>
+                    <span className="text-[9px] opacity-70">({sug.source})</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Custom Color Text Input */}
         <div className="flex items-center gap-2 pt-1 max-w-sm">
           <Input
             value={customColor}
@@ -543,7 +671,7 @@ export function ProductForm({
                 addCustomColor();
               }
             }}
-            placeholder="Custom color (e.g. Mint Green, Wine, Rust)"
+            placeholder="Manual color name (e.g. Mint Green, Wine, Rust)"
             className="h-8 text-xs"
           />
           <Button
@@ -553,7 +681,7 @@ export function ProductForm({
             className="h-8 text-xs shrink-0"
             onClick={addCustomColor}
           >
-            + Add color
+            + Add manual
           </Button>
         </div>
 

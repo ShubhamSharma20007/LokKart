@@ -37,16 +37,34 @@ export const CLOTHING_COLORS = [
   { name: "Sky Blue", hex: "#38bdf8" },
 ] as const;
 
+import { getHexFromColorName, normalizeHex } from "./color-namer";
+
 export function getColorHex(name: string): string {
+  if (!name) return "#64748b";
+  // 1. Direct hex or embedded hex code (e.g. "#BE6D84" or "Turkish Rose (#BE6D84)")
+  const hexMatch = name.match(/#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/);
+  if (hexMatch) {
+    return normalizeHex(hexMatch[0]);
+  }
+
   const clean = name.trim().toLowerCase();
+
+  // 2. Exact or partial match with preset clothing colors
   const match = CLOTHING_COLORS.find(
     (c) => c.name.toLowerCase() === clean || clean.includes(c.name.toLowerCase()) || c.name.toLowerCase().includes(clean)
   );
   if (match) return match.hex;
+
+  // 3. Match from CSS standard palette via color-name library
+  const cssHex = getHexFromColorName(clean);
+  if (cssHex) return cssHex;
+
+  // 4. Keyword fuzzy fallbacks
+  if (clean.includes("rose")) return "#be6d84";
   if (clean.includes("green") || clean.includes("teal")) return "#0d9488";
   if (clean.includes("red") || clean.includes("maroon") || clean.includes("wine")) return "#881337";
   if (clean.includes("blue") || clean.includes("navy")) return "#111827";
-  if (clean.includes("purple") || clean.includes("violet")) return "#7e22ce";
+  if (clean.includes("purple") || clean.includes("violet") || clean.includes("mauve")) return "#7e22ce";
   if (clean.includes("yellow") || clean.includes("mustard")) return "#ca8a04";
   if (clean.includes("black")) return "#111827";
   if (clean.includes("white")) return "#f8fafc";
