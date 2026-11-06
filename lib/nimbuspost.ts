@@ -452,6 +452,7 @@ export async function trackNimbusOrder(
 
     const d = json.data;
     const scansList = Array.isArray(d?.scans) ? d.scans : [];
+    const shipmentObj = (d?.shipment && typeof d.shipment === "object") ? (d.shipment as Record<string, unknown>) : {};
 
     return {
       ok: true,
@@ -459,8 +460,8 @@ export async function trackNimbusOrder(
         orderId: String(d?.orderId ?? nimbusOrderId),
         orderNumber: String(d?.orderNumber ?? ""),
         orderStatus: String(d?.orderStatus ?? ""),
-        awb: d?.awb ? String(d.awb) : undefined,
-        courierName: d?.courierName ? String(d.courierName) : undefined,
+        awb: d?.awb ? String(d.awb) : (shipmentObj.awb ? String(shipmentObj.awb) : undefined),
+        courierName: d?.courierName ? String(d.courierName) : (shipmentObj.courierName ? String(shipmentObj.courierName) : undefined),
         trackingUrl: d?.tracking_url || d?.tracking_short_url || "",
         scans: scansList.map((s: Record<string, unknown>) => ({
           timestamp: String(s.timestamp || s.date || ""),

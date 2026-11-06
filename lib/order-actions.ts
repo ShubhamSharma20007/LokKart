@@ -454,6 +454,44 @@ export async function getMyOrders(idToken: string): Promise<MyOrdersResult> {
       },
     });
 
+    // Auto-sync any active shipment orders in real-time with NimbusPost
+    await Promise.all(
+      rows.map(async (row) => {
+        if (!row.nimbusOrderId || row.status === "DELIVERED" || row.status === "CANCELLED") return;
+        try {
+          const tracking = await trackNimbusOrder(row.nimbusOrderId);
+          if (tracking.ok) {
+            const rawStatus =
+              tracking.data.latest?.shipStatus ||
+              tracking.data.latest?.statusCode ||
+              tracking.data.orderStatus;
+            const liveStatus = rawStatus ? mapNimbusStatusToOrderStatus(rawStatus) : null;
+            const liveAwb = tracking.data.awb || row.awb;
+            const liveCourier = tracking.data.courierName || row.courierName;
+            const liveTrackingUrl = tracking.data.trackingUrl || row.trackingUrl;
+
+            if ((liveStatus && liveStatus !== row.status) || (liveAwb && !row.awb)) {
+              await prisma.order.update({
+                where: { id: row.id },
+                data: {
+                  ...(liveStatus ? { status: liveStatus } : {}),
+                  ...(liveAwb ? { awb: liveAwb } : {}),
+                  ...(liveCourier ? { courierName: liveCourier } : {}),
+                  ...(liveTrackingUrl ? { trackingUrl: liveTrackingUrl } : {}),
+                },
+              });
+              if (liveStatus) row.status = liveStatus;
+              if (liveAwb) row.awb = liveAwb;
+              if (liveCourier) row.courierName = liveCourier;
+              if (liveTrackingUrl) row.trackingUrl = liveTrackingUrl;
+            }
+          }
+        } catch (e) {
+          console.warn("[getMyOrders] Auto-sync error for order:", row.ref, e);
+        }
+      })
+    );
+
     return {
       ok: true,
       orders: rows.map(({ address, city, state, pincode, createdAt, ...o }) => ({

@@ -45,7 +45,9 @@ export async function POST(req: NextRequest) {
     const orderNumber = payload.order_number ? String(payload.order_number) : undefined;
     const awb = payload.awb_number ? String(payload.awb_number) : undefined;
     const courierName = payload.courier_name ? String(payload.courier_name) : undefined;
-    const nimbusStatus = payload.status ? String(payload.status) : undefined;
+    const nimbusStatus = (payload.ship_status || payload.status_code || payload.status)
+      ? String(payload.ship_status || payload.status_code || payload.status)
+      : undefined;
 
     console.log(
       `[NimbusWebhook] Received event=${eventName} for order=${orderNumber || nimbusOrderId}, status=${nimbusStatus}, awb=${awb}`
