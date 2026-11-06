@@ -10,6 +10,7 @@ import {
   bookNimbusShipment,
   scheduleNimbusPickup,
   trackNimbusOrder,
+  mapNimbusStatusToOrderStatus,
 } from "@/lib/nimbuspost";
 import { sendOrderPlacedNotification } from "@/lib/mailer";
 type Input = {
