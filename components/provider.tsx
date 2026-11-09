@@ -5,7 +5,7 @@ import { Provider } from "react-redux";
 import { AuthProvider } from "@/components/auth-provider";
 import { hydrate } from "@/lib/store/slices/cartSlice";
 import { makeStore } from "@/lib/store/store";
-
+import { SpeedInsights } from '@vercel/speed-insights/next';
 const KEY = "bachatnix-cart";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -33,8 +33,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }, [store]);
 
   return (
+    <>
+  <SpeedInsights />
     <Provider store={store}>
       <AuthProvider>{children}</AuthProvider>
     </Provider>
+    </>
   );
 }
