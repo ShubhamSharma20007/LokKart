@@ -81,10 +81,11 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/favicon.png", type: "image/png" },
-      { url: "/icon.png", type: "image/png" },
+      { url: "/favicon.ico", sizes: "48x48" },
+      { url: "/favicon.png", type: "image/png", sizes: "48x48" },
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
     ],
-    shortcut: "/favicon.png",
+    shortcut: "/favicon.ico",
     apple: "/app-icon.png",
   },
   verification: {
@@ -113,6 +114,7 @@ const orgJsonLd = {
       "@id": `${siteUrl}/#website`,
       url: siteUrl,
       name: "Bachatnix",
+      alternateName: ["Bachatnix Store", "Bachatnix Fashion", "Bachatnix India", "Bachatnix Online"],
       description: "Buy Clothes Online at Best Prices with Free Shipping & COD",
       publisher: {
         "@id": `${siteUrl}/#organization`,

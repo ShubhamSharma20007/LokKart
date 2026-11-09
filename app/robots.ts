@@ -13,6 +13,9 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: "*",
         allow: [
           "/",
+          "/favicon.ico",
+          "/favicon.png",
+          "/icon.png",
           "/products",
           "/products/*",
           "/about",
