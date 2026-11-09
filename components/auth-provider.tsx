@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut } from "firebase/auth";
 import { toast } from "sonner";
 import { auth, googleProvider } from "@/hooks/useFirebaseAuth";
-import { syncUser, type SyncedUser } from "@/lib/auth-actions";
+import { syncUser, clearUserSession, type SyncedUser } from "@/lib/auth-actions";
 
 type AuthContextValue = {
   user: SyncedUser | null;
@@ -92,7 +92,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     try {
+      const fbUser = auth.currentUser;
+      if (fbUser) {
+        const token = await fbUser.getIdToken().catch(() => null);
+        if (token) {
+          void clearUserSession(token);
+        }
+      }
       await firebaseSignOut(auth);
+      setUser(null);
       toast("Signed out", { id: "auth" });
     } catch {
       toast.error("Could not sign out. Please try again.", { id: "auth" });

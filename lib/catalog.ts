@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
+import { rememberCache, CACHE_KEYS, CACHE_TTL } from "@/lib/redis";
 import type { Category } from "@/lib/products";
 import type { ListingParams, ListingSort } from "@/lib/listing-params";
 
@@ -64,56 +65,60 @@ export type CategorySectionData = {
 
 // Fetch products grouped by category for the landing page (only categories with >= 1 product)
 export const getCategorySections = cache(async (limitPerCategory = 4): Promise<CategorySectionData[]> => {
-  try {
-    const groups = await prisma.product.groupBy({
-      by: ["category"],
-      _count: { _all: true },
-      where: { stock: { gte: 0 } },
-      orderBy: { category: "asc" },
-    });
+  return rememberCache(CACHE_KEYS.catalogSections(limitPerCategory), CACHE_TTL.CATALOG_SECTIONS, async () => {
+    try {
+      const groups = await prisma.product.groupBy({
+        by: ["category"],
+        _count: { _all: true },
+        where: { stock: { gte: 0 } },
+        orderBy: { category: "asc" },
+      });
 
-    // Only categories that have at least 1 product
-    const active = groups.filter((g) => g.category && g._count._all > 0);
-    if (active.length === 0) return [];
+      // Only categories that have at least 1 product
+      const active = groups.filter((g) => g.category && g._count._all > 0);
+      if (active.length === 0) return [];
 
-    const sections = await Promise.all(
-      active.map(async (g) => {
-        const rows = await prisma.product.findMany({
-          where: { category: g.category },
-          select,
-          orderBy: [{ createdAt: "desc" }, { id: "asc" }],
-          take: limitPerCategory,
-        });
+      const sections = await Promise.all(
+        active.map(async (g) => {
+          const rows = await prisma.product.findMany({
+            where: { category: g.category },
+            select,
+            orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+            take: limitPerCategory,
+          });
 
-        return {
-          category: g.category,
-          total: g._count._all,
-          products: keep(rows),
-        };
-      })
-    );
+          return {
+            category: g.category,
+            total: g._count._all,
+            products: keep(rows),
+          };
+        })
+      );
 
-    return sections;
-  } catch (err) {
-    console.error("Failed to fetch category sections", err);
-    return [];
-  }
+      return sections;
+    } catch (err) {
+      console.error("Failed to fetch category sections", err);
+      return [];
+    }
+  });
 });
 
 // Fetch all distinct categories currently active in the database (only categories with products)
 export const getActiveCategories = cache(async (): Promise<string[]> => {
-  try {
-    const distinct = await prisma.product.findMany({
-      distinct: ["category"],
-      select: { category: true },
-      where: { stock: { gte: 0 } },
-      orderBy: { category: "asc" },
-    });
-    return distinct.map((d) => d.category.trim()).filter(Boolean);
-  } catch (err) {
-    console.error("Failed to fetch active categories", err);
-    return [];
-  }
+  return rememberCache(CACHE_KEYS.activeCategories(), CACHE_TTL.ACTIVE_CATEGORIES, async () => {
+    try {
+      const distinct = await prisma.product.findMany({
+        distinct: ["category"],
+        select: { category: true },
+        where: { stock: { gte: 0 } },
+        orderBy: { category: "asc" },
+      });
+      return distinct.map((d) => d.category.trim()).filter(Boolean);
+    } catch (err) {
+      console.error("Failed to fetch active categories", err);
+      return [];
+    }
+  });
 });
 
 // Newest first, one page at a time. The cursor is the id of the last product already
@@ -136,37 +141,43 @@ export async function listProductsPage(
 
 // The newest product, for the home page hero card.
 export const getLatestProduct = cache(async (): Promise<StoreProduct | null> => {
-  const { products } = await listProductsPage({ limit: 10 });
-  if (products.length === 0) return null;
-  const randomProduct = Math.floor(Math.random() * products.length);
-  return products[randomProduct] ?? null;
+  return rememberCache(CACHE_KEYS.latestProduct(), CACHE_TTL.LATEST_PRODUCT, async () => {
+    const { products } = await listProductsPage({ limit: 10 });
+    if (products.length === 0) return null;
+    const randomProduct = Math.floor(Math.random() * products.length);
+    return products[randomProduct] ?? null;
+  });
 });
 
 export const getStoreProduct = cache(async (id: string): Promise<StoreProduct | null> => {
-  const row = await prisma.product.findUnique({ where: { id }, select });
-  return row ? toStoreProduct(row) : null;
+  return rememberCache(CACHE_KEYS.product(id), CACHE_TTL.PRODUCT, async () => {
+    const row = await prisma.product.findUnique({ where: { id }, select });
+    return row ? toStoreProduct(row) : null;
+  });
 });
 
 // Same category first, then newest from other categories, never the product itself.
 export async function getRelatedProducts(product: StoreProduct, limit = 3): Promise<StoreProduct[]> {
-  const same = await prisma.product.findMany({
-    where: { category: product.category, id: { not: product.id } },
-    select,
-    orderBy: { createdAt: "desc" },
-    take: limit,
-  });
-  const rows = [...same];
-
-  if (rows.length < limit) {
-    const others = await prisma.product.findMany({
-      where: { category: { not: product.category }, id: { not: product.id } },
+  return rememberCache(CACHE_KEYS.relatedProducts(product.id, limit), CACHE_TTL.RELATED_PRODUCTS, async () => {
+    const same = await prisma.product.findMany({
+      where: { category: product.category, id: { not: product.id } },
       select,
       orderBy: { createdAt: "desc" },
-      take: limit - rows.length,
+      take: limit,
     });
-    rows.push(...others);
-  }
-  return keep(rows);
+    const rows = [...same];
+
+    if (rows.length < limit) {
+      const others = await prisma.product.findMany({
+        where: { category: { not: product.category }, id: { not: product.id } },
+        select,
+        orderBy: { createdAt: "desc" },
+        take: limit - rows.length,
+      });
+      rows.push(...others);
+    }
+    return keep(rows);
+  });
 }
 
 // ---------- Search ----------

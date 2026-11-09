@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { deleteImageKitFile, requireAdmin,getUserFromToken } from "../lib/imagekit-server"
 import { categories, getProduct } from "@/lib/products";
 import { calculateShippingBuffer } from "@/lib/shipping";
+import { invalidateProductCache } from "@/lib/redis";
 const makeRef = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 const fail = (s: FormState, message = "Fix the highlighted fields and try again."): FormState => ({ ...s, ok: false, message });
 
@@ -142,6 +143,7 @@ export async function createProduct(_prev: FormState, fd: FormData): Promise<For
     revalidatePath("/admin/products/new");
     revalidatePath("/");
     revalidatePath("/products");
+    await invalidateProductCache(product.id);
     return { ...s, ok: true, ref: product.id, message: "Product added successfully" };
   } catch (err) {
     console.error("createProduct failed", err);
@@ -190,6 +192,7 @@ export async function deleteProduct(idToken: string, productId: string): Promise
     revalidatePath("/admin/products/new");
     revalidatePath("/");
     revalidatePath("/products");
+    await invalidateProductCache(productId);
     return { ok: true };
   } catch (err) {
     console.error("deleteProduct failed", err);
@@ -424,5 +427,6 @@ export async function updateProduct(_prev: FormState, fd: FormData): Promise<For
   revalidatePath("/admin/products/new");
   revalidatePath("/");
   revalidatePath("/products");
+  await invalidateProductCache(s.values.id);
   return { ...s, ok: true, ref: s.values.id, message: "Product updated successfully" };
 }

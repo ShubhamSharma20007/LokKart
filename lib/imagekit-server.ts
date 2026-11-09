@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { verifyFirebaseToken } from "@/lib/firebase-token";
+import { rememberCache, CACHE_KEYS, CACHE_TTL } from "@/lib/redis";
 
 // Server-only helpers (no "use server": these must never be callable from the browser).
 
@@ -37,9 +38,11 @@ export async function deleteImageKitFile(fileId: string): Promise<boolean> {
 // Returns the DB user for a valid Firebase token, or null.
 export async function getUserFromToken(idToken: string) {
   const c = await verifyFirebaseToken(idToken);
-  if (!c.email) return null
-  return prisma.user.findFirst({
-    where: { OR: [{ firebaseUid: c.uid }, ...(c.email ? [{ email: c.email }] : [])] },
-    select: { id: true },
+  if (!c.email) return null;
+  return rememberCache(CACHE_KEYS.userId(c.uid), CACHE_TTL.USER_SESSION, async () => {
+    return prisma.user.findFirst({
+      where: { OR: [{ firebaseUid: c.uid }, ...(c.email ? [{ email: c.email }] : [])] },
+      select: { id: true },
+    });
   });
 }

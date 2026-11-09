@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { rememberCache, invalidateReviewsCache, CACHE_KEYS, CACHE_TTL } from "@/lib/redis";
 
 export async function GET(
   req: NextRequest,
@@ -19,26 +20,31 @@ export async function GET(
       orderBy = [{ rating: "asc" }, { createdAt: "desc" }];
     }
 
-    // Dynamic database reviews only
-    const reviews = await prisma.review.findMany({
-      where: { productId },
-      orderBy,
-      take: 100,
+    const cacheKey = CACHE_KEYS.reviews(productId, sort);
+    const data = await rememberCache(cacheKey, CACHE_TTL.REVIEWS, async () => {
+      // Dynamic database reviews only
+      const reviews = await prisma.review.findMany({
+        where: { productId },
+        orderBy,
+        take: 100,
+      });
+
+      const total = reviews.length;
+      const avg =
+        total > 0
+          ? Number(
+              (reviews.reduce((acc, r) => acc + r.rating, 0) / total).toFixed(1)
+            )
+          : 0;
+
+      return {
+        reviews,
+        total,
+        averageRating: avg,
+      };
     });
 
-    const total = reviews.length;
-    const avg =
-      total > 0
-        ? Number(
-            (reviews.reduce((acc, r) => acc + r.rating, 0) / total).toFixed(1)
-          )
-        : 0;
-
-    return NextResponse.json({
-      reviews,
-      total,
-      averageRating: avg,
-    });
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Error fetching reviews:", error);
     return NextResponse.json({
@@ -88,6 +94,9 @@ export async function POST(
       },
     });
 
+    // Invalidate Redis cache so new review appears immediately
+    await invalidateReviewsCache(productId);
+
     return NextResponse.json({ success: true, review });
   } catch (error) {
     console.error("Error submitting review:", error);
@@ -117,6 +126,9 @@ export async function DELETE(
     await prisma.review.delete({
       where: { id: reviewId },
     });
+
+    // Invalidate Redis cache
+    await invalidateReviewsCache(productId);
 
     return NextResponse.json({ success: true, message: "Review deleted" });
   } catch (error) {

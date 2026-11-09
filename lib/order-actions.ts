@@ -13,6 +13,7 @@ import {
   mapNimbusStatusToOrderStatus,
 } from "@/lib/nimbuspost";
 import { sendOrderPlacedNotification } from "@/lib/mailer";
+import { invalidateProductCache } from "@/lib/redis";
 type Input = {
   token: string;
   payment: "COD" | "UPI";
@@ -385,6 +386,11 @@ export async function placeOrder(input: Input): Promise<Result> {
 
     // Send order confirmation email asynchronously
     void sendOrderPlacedNotification(order.id);
+
+    // Invalidate Redis cache for ordered products to keep stock real-time
+    for (const l of lines) {
+      void invalidateProductCache(l.productId);
+    }
 
     // 7. Future Production Flow: If AUTO_DISPATCH is enabled in env, immediately book courier & schedule pickup
     if (process.env.NIMBUS_AUTO_DISPATCH === "true" && nimbusOrderId) {
