@@ -55,10 +55,16 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/favicon.png",
-        width: 512,
-        height: 512,
+        url: "/models.png",
+        width: 720,
+        height: 633,
         alt: "Bachatnix Online Fashion Store",
+      },
+      {
+        url: "/app-icon.png",
+        width: 180,
+        height: 180,
+        alt: "Bachatnix Logo",
       },
     ],
   },
@@ -67,6 +73,7 @@ export const metadata: Metadata = {
     title: "Bachatnix | Buy Clothes Online - Trendy Fashion at Best Prices",
     description:
       "Shop quality clothes, daily wear, and trending apparel with Free Shipping and Cash on Delivery.",
+    images: ["/models.png"],
   },
   robots: {
     index: true,
@@ -83,7 +90,6 @@ export const metadata: Metadata = {
     icon: [
       { url: "/favicon.ico", sizes: "48x48" },
       { url: "/favicon.png", type: "image/png", sizes: "48x48" },
-      { url: "/icon.png", type: "image/png", sizes: "512x512" },
     ],
     shortcut: "/favicon.ico",
     apple: "/app-icon.png",
@@ -101,7 +107,13 @@ const orgJsonLd = {
       "@id": `${siteUrl}/#organization`,
       name: "Bachatnix",
       url: siteUrl,
-      logo: `${siteUrl}/favicon.png`,
+      logo: {
+        "@type": "ImageObject",
+        url: `${siteUrl}/app-icon.png`,
+        width: 180,
+        height: 180,
+      },
+      image: `${siteUrl}/models.png`,
       sameAs: [],
       contactPoint: {
         "@type": "ContactPoint",
